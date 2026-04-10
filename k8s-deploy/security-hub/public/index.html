@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Triangle AI — Security Hub</title>
+  <meta name="description" content="Cloud Native AI Security Operations Center for Kubernetes threat monitoring">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Top Navigation -->
+  <nav class="top-nav">
+    <div class="nav-left">
+      <div class="logo">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+        <span class="logo-text">Triangle AI</span>
+      </div>
+      <span class="nav-separator">|</span>
+      <span class="nav-title">Security Hub</span>
+      <span class="nav-badge">CLOUD NATIVE</span>
+    </div>
+    <div class="nav-right">
+      <div class="ws-status" id="wsStatus">
+        <span class="ws-dot"></span>
+        <span class="ws-text">Connecting...</span>
+      </div>
+      <div class="status-indicator" id="statusIndicator">
+        <span class="status-dot"></span>
+        <span class="status-text">Checking...</span>
+      </div>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    <!-- Stats Bar -->
+    <div class="stats-bar">
+      <div class="stat-card stat-total">
+        <div class="stat-icon">🔍</div>
+        <div class="stat-info">
+          <div class="stat-value" id="statTotal">0</div>
+          <div class="stat-label">Total Scans</div>
+        </div>
+      </div>
+      <div class="stat-card stat-threats">
+        <div class="stat-icon">⚠️</div>
+        <div class="stat-info">
+          <div class="stat-value" id="statThreats">0</div>
+          <div class="stat-label">Threats Detected</div>
+        </div>
+      </div>
+      <div class="stat-card stat-high">
+        <div class="stat-icon">🔴</div>
+        <div class="stat-info">
+          <div class="stat-value" id="statHigh">0</div>
+          <div class="stat-label">High Risk</div>
+        </div>
+      </div>
+      <div class="stat-card stat-clean">
+        <div class="stat-icon">✅</div>
+        <div class="stat-info">
+          <div class="stat-value" id="statClean">0</div>
+          <div class="stat-label">Clean Files</div>
+        </div>
+      </div>
+      <div class="stat-card stat-nodes">
+        <div class="stat-icon">🖥️</div>
+        <div class="stat-info">
+          <div class="stat-value" id="statNodes">0</div>
+          <div class="stat-label">Active Nodes</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Middle Row: Node Map + Trend Chart -->
+    <div class="panel-row mid-row">
+      <div class="panel node-panel">
+        <div class="panel-header">
+          <span class="panel-title">🏗️ Cluster Node Threat Map</span>
+        </div>
+        <div class="panel-body" id="nodeMap">
+          <div class="empty-state">Waiting for scanner data...</div>
+        </div>
+      </div>
+      <div class="panel chart-panel">
+        <div class="panel-header">
+          <span class="panel-title">📈 Threat Trend</span>
+        </div>
+        <div class="panel-body"><canvas id="trendChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Live Threat Feed -->
+    <div class="panel feed-panel">
+      <div class="panel-header">
+        <span class="panel-title">🔴 Live Threat Feed</span>
+        <div class="feed-controls">
+          <button class="feed-btn active" data-filter="all">All</button>
+          <button class="feed-btn" data-filter="HIGH RISK">High</button>
+          <button class="feed-btn" data-filter="MEDIUM RISK">Medium</button>
+          <button class="feed-btn" data-filter="CLEAN">Clean</button>
+        </div>
+      </div>
+      <div class="panel-body feed-body">
+        <table class="feed-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Node</th>
+              <th>File</th>
+              <th>Type</th>
+              <th>Score</th>
+              <th>Verdict</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody id="feedBody">
+            <tr class="empty-row"><td colspan="7">No events yet. Waiting for scanner reports...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- AI Forensics Panel -->
+    <div class="panel ai-panel" id="aiPanel" style="display:none;">
+      <div class="panel-header">
+        <span class="panel-title">🧠 Triangle AI Forensics</span>
+      </div>
+      <div class="panel-body" id="aiContent"></div>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

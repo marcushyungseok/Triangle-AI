@@ -1,0 +1,12 @@
+{
+  "name": "triangle-security-hub",
+  "version": "1.0.0",
+  "description": "Triangle AI Cloud Native Security Hub — Real-time Threat Monitoring Dashboard",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "dependencies": {
+    "express": "^4.21.0",
+    "node-fetch": "^2.7.0",
+    "ws": "^8.18.0"
+  }
+}

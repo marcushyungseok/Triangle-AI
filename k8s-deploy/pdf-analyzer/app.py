@@ -332,5 +332,116 @@ def analyze():
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
+# --------------------------------------------------------------------------
+# Cloud Native Security Hub — In-Memory Event Store
+# --------------------------------------------------------------------------
+import threading
+
+_events = []
+_events_lock = threading.Lock()
+MAX_EVENTS = 500
+
+
+@app.route('/api/scan-event', methods=['POST'])
+def scan_event():
+    """Receive a file + K8s metadata from a DaemonSet scanner."""
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+
+    file = request.files['file']
+    node_name = request.form.get('node_name', 'unknown')
+    namespace = request.form.get('namespace', 'unknown')
+    pod_name = request.form.get('pod_name', 'unknown')
+    file_path = request.form.get('file_path', file.filename or 'unknown')
+
+    try:
+        bytes_data = file.read()
+        sha256 = hashlib.sha256(bytes_data).hexdigest()
+        analysis = analyze_file(bytes_data, os.path.basename(file_path))
+
+        # Build AI insight for HIGH RISK only (to save resources)
+        ai_insight = ''
+        if analysis.get('risk_score', 0) >= 60:
+            ai_insight = generate_ai_insight(analysis)
+
+        event = {
+            'id': len(_events) + 1,
+            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'node_name': node_name,
+            'namespace': namespace,
+            'pod_name': pod_name,
+            'file_path': file_path,
+            'filename': os.path.basename(file_path),
+            'sha256': sha256,
+            'file_size': len(bytes_data),
+            'mime_type': magic.from_buffer(bytes_data, mime=True),
+            'type': analysis['type'],
+            'risk_score': analysis['risk_score'],
+            'verdict': analysis['verdict'],
+            'details': analysis['details'],
+            'ai_insight': ai_insight,
+        }
+
+        with _events_lock:
+            _events.insert(0, event)
+            if len(_events) > MAX_EVENTS:
+                _events.pop()
+
+        return jsonify({'status': 'received', 'event': event})
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/events', methods=['GET'])
+def get_events():
+    """Return recent scan events for the Security Hub dashboard."""
+    limit = min(int(request.args.get('limit', 50)), MAX_EVENTS)
+    verdict_filter = request.args.get('verdict', None)
+
+    with _events_lock:
+        filtered = _events
+        if verdict_filter:
+            filtered = [e for e in _events if e['verdict'] == verdict_filter]
+        return jsonify({'events': filtered[:limit], 'total': len(_events)})
+
+
+@app.route('/api/stats', methods=['GET'])
+def get_stats():
+    """Return aggregated cluster-wide statistics."""
+    with _events_lock:
+        total = len(_events)
+        threats = sum(1 for e in _events if e['verdict'] in ('HIGH RISK', 'MEDIUM RISK'))
+        clean = sum(1 for e in _events if e['verdict'] == 'CLEAN')
+        high_risk = sum(1 for e in _events if e['verdict'] == 'HIGH RISK')
+
+        # Per-node breakdown
+        nodes = {}
+        for e in _events:
+            n = e['node_name']
+            if n not in nodes:
+                nodes[n] = {'total': 0, 'threats': 0, 'high_risk': 0}
+            nodes[n]['total'] += 1
+            if e['verdict'] in ('HIGH RISK', 'MEDIUM RISK'):
+                nodes[n]['threats'] += 1
+            if e['verdict'] == 'HIGH RISK':
+                nodes[n]['high_risk'] += 1
+
+        # Timeline (last 10 events timestamps + scores)
+        timeline = [{'t': e['timestamp'], 's': e['risk_score'], 'v': e['verdict']}
+                     for e in _events[:30]]
+
+        return jsonify({
+            'total_scans': total,
+            'threats_detected': threats,
+            'high_risk': high_risk,
+            'clean_files': clean,
+            'active_nodes': len(nodes),
+            'nodes': nodes,
+            'timeline': timeline,
+        })
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
