@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: pdf-analyzer
-          image: npe-pdf-analyzer:latest
+          image: npe-pdf-analyzer:v2
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000

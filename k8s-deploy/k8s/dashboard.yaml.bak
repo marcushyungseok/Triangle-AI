@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: dashboard
-          image: npe-dashboard:v2
+          image: npe-dashboard:v3
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000

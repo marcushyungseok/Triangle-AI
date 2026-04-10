@@ -105,26 +105,46 @@ def analyze_office(bytes_data, filename):
     if not OLE_TOOLS_AVAILABLE:
         return {'type': 'Office Document', 'error': 'Office analysis tools not available'}
 
+    import tempfile
+    
     score = 0
     reasons = []
-    
-    # 1. MacroRaptor check
-    mr = MacroRaptor(filename, data=bytes_data)
-    mr.scan()
-    if mr.suspicious:
-        score += 60
-        reasons.append("Suspicious VBA Macros detected (Auto-exec / dangerous APIs)")
-    
-    # 2. OleID check
-    oid = OleID(data=bytes_data)
-    indicators = oid.check()
-    for indicator in indicators:
-        if indicator.id == 'encrypted' and indicator.value is True:
-            score += 20
-            reasons.append("Encrypted/Password-protected document")
-        if indicator.id == 'external_relationships' and indicator.value > 0:
-            score += 15
-            reasons.append(f"External relationships found ({indicator.value})")
+    is_suspicious = False
+
+    # Create a temporary file because oletools often works better with actual files
+    with tempfile.NamedTemporaryFile(suffix=os.path.splitext(filename)[1], delete=False) as tmp:
+        tmp.write(bytes_data)
+        tmp_path = tmp.name
+
+    try:
+        # 1. MacroRaptor check
+        mr = MacroRaptor(tmp_path)
+        mr.scan()
+        if mr.suspicious:
+            is_suspicious = True
+            score += 60
+            reasons.append("Suspicious VBA Macros detected (Auto-exec / dangerous APIs)")
+        
+        # 2. OleID check
+        # For OleID, it sometimes takes a filename or data
+        oid = OleID(tmp_path)
+        indicators = oid.check()
+        for indicator in indicators:
+            if indicator.id == 'encrypted' and indicator.value is True:
+                score += 20
+                reasons.append("Encrypted/Password-protected document")
+            if indicator.id == 'vba_macros' and indicator.value is True:
+                if not is_suspicious:
+                    score += 10
+                    reasons.append("Contains VBA Macros (but not immediately flagged as malicious)")
+            if indicator.id == 'external_relationships' and hasattr(indicator, 'value') and isinstance(indicator.value, int) and indicator.value > 0:
+                score += 15
+                reasons.append(f"External relationships found ({indicator.value})")
+    except Exception as e:
+        reasons.append(f"Analysis warning: {str(e)}")
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
     verdict = "CLEAN"
     if score >= 60: verdict = "HIGH RISK"
@@ -136,7 +156,7 @@ def analyze_office(bytes_data, filename):
         'verdict': verdict,
         'details': reasons,
         'stats': {
-            'macro_suspicious': mr.suspicious if 'mr' in locals() else False,
+            'macro_suspicious': is_suspicious,
             'indicators': len(reasons)
         }
     }
