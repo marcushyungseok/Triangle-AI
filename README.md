@@ -614,6 +614,7 @@ minikube service dashboard-service -n npe-learner
 ```dockerfile
 FROM python:3.11-alpine
 WORKDIR /app
+RUN apk add --no-cache libmagic
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
@@ -654,7 +655,7 @@ spec:
       containers:
         - name: pdf-analyzer
           image: npe-pdf-analyzer:latest
-          imagePullPolicy: Never
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000
           resources:
@@ -699,7 +700,7 @@ spec:
       containers:
         - name: dashboard
           image: npe-dashboard:latest
-          imagePullPolicy: Never
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
           env:
