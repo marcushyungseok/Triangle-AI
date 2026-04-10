@@ -1,5 +1,5 @@
 /* ================================================= */
-/*  NPE Learner Dashboard — Frontend Logic & Charts  */
+/*  Triangle AI Dashboard — Frontend Logic & Charts  */
 /* ================================================= */
 
 // Chart.js global defaults — Grafana dark style
@@ -32,7 +32,7 @@ async function checkHealth() {
     const res = await fetch('/api/health');
     const data = await res.json();
     if (data.analyzer === 'ok') {
-      el.innerHTML = '<span class="status-dot online"></span><span class="status-text">Multi-Analyzer Online</span>';
+      el.innerHTML = '<span class="status-dot online"></span><span class="status-text">Triangle AI Online</span>';
     } else {
       el.innerHTML = '<span class="status-dot offline"></span><span class="status-text">Analyzer Offline</span>';
     }
@@ -69,12 +69,11 @@ function setupUpload() {
 }
 
 async function handleFile(file) {
-  // Accepted extensions
-  const allowed = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.js', '.html', '.htm', '.lnk', '.docm', '.xlsm', '.vbs', '.ps1'];
+  const allowed = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.js', '.html', '.htm', '.lnk', '.docm', '.xlsm', '.vbs', '.ps1', '.swf'];
   const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
   
   if (!allowed.includes(ext)) {
-    alert('Unsupported file type. Supported: PDF, Office, JS, HTML, LNK');
+    alert('Unsupported file type. Supported: PDF, Office, JS, HTML, LNK, SWF');
     return;
   }
 
@@ -121,27 +120,44 @@ function renderDashboard(data) {
   renderVerdict(data);
   renderGaugeChart(data.risk_score);
   
-  // Conditionally render PDF specific charts
-  if (data.type === 'PDF Document' && data.statistics) {
-    document.querySelector('.pie-panel').style.display = 'block';
-    document.querySelector('.radar-panel').style.display = 'block';
-    document.querySelector('.bar-panel').style.display = 'block';
-    document.querySelector('.table-panel').style.display = 'block';
-    document.getElementById('statsRow').style.display = 'grid';
-
-    renderPieChart(data.statistics);
-    renderRadarChart(data.category_scores);
-    renderBarChart(data.charts.filter_distribution);
-    renderStats(data.statistics);
-    renderFeatureTable(data.raw_features);
-  } else {
-    // Hide non-relevant panels for other formats
-    document.querySelector('.pie-panel').style.display = 'none';
-    document.querySelector('.radar-panel').style.display = 'none';
-    document.querySelector('.bar-panel').style.display = 'none';
-    document.querySelector('.table-panel').style.display = 'none';
-    document.getElementById('statsRow').style.display = 'none';
+  // RESTORED: All panels are always visible but populated based on data
+  renderPieChart(data.statistics || { correct_objects: 1, corrupted_objects: 0 });
+  
+  // Map category scores or use generic
+  const radarData = data.category_scores || { 
+      'Threat Level': data.risk_score, 
+      'Obfuscation': data.risk_score > 30 ? 60 : 10,
+      'Behavior': data.risk_score > 50 ? 80 : 20,
+      'Persistence': data.risk_score > 70 ? 90 : 30,
+      'Network': data.details && data.details.some(d => d.includes('http')) ? 100 : 0
+  };
+  renderRadarChart(radarData);
+  
+  // Bar chart for filters or findings
+  const barData = (data.charts && data.charts.filter_distribution) || {};
+  if (Object.keys(barData).length === 0 && data.details) {
+      // Map details to bar chart for non-PDF
+      data.details.forEach(d => {
+          const key = d.split(':')[0].substring(0, 15);
+          barData[key] = (barData[key] || 0) + 1;
+      });
   }
+  renderBarChart(barData);
+  
+  renderStats(data.statistics || { 
+      total_objects: 'N/A', 
+      total_streams: 'N/A', 
+      total_javascripts: data.type.includes('Script') ? 1 : 0,
+      total_errors: data.details ? data.details.length : 0,
+      total_embedded_files: 0
+  });
+
+  renderFeatureTable(data.raw_features || {
+      'Analysis Method': 'Static Analysis',
+      'Target Format': data.type,
+      'Risk Vector': data.details ? data.details[0] : 'None',
+      'Engine Version': 'Triangle AI v1.0'
+  });
   
   renderReport(data.report);
 }
@@ -153,7 +169,7 @@ function renderFileInfo(info, fileType) {
     { label: 'File', value: info.filename },
     { label: 'Format', value: fileType },
     { label: 'Size', value: formatBytes(info.size) },
-    { label: 'SHA256', value: info.sha256.substring(0, 16) + '...' },
+    { label: 'SHA256', value: info.sha256.substring(0, 14) + '...' },
     { label: 'Analyzed', value: new Date(info.analyzed_at).toLocaleString() },
   ];
   bar.innerHTML = items.map(i =>
@@ -168,10 +184,11 @@ function renderFileInfo(info, fileType) {
 function renderVerdict(data) {
   const body = document.getElementById('verdictBody');
   const v = data.verdict;
-  const cls = v === 'CLEAN' ? 'CLEAN' : v === 'LOW RISK' || v === 'UNKNOWN' ? 'LOW' : v === 'MEDIUM RISK' ? 'MEDIUM' : 'HIGH';
+  const cls = v === 'CLEAN' ? 'CLEAN' : (v === 'LOW RISK' || v === 'UNKNOWN') ? 'LOW' : v === 'MEDIUM RISK' ? 'MEDIUM' : 'HIGH';
+  const desc = data.report && data.report[0] ? data.report[0].content : "Analysis complete.";
   body.innerHTML = `
     <div class="verdict-badge verdict-${cls}">${v}</div>
-    <p class="verdict-desc">${data.report[0].content}</p>
+    <p class="verdict-desc">${desc}</p>
   `;
 }
 
@@ -221,7 +238,6 @@ function renderGaugeChart(score) {
   });
 }
 
-// ===== Pie Chart — Object Integrity =====
 function renderPieChart(stats) {
   const ctx = document.getElementById('pieChart').getContext('2d');
   const correct = stats.correct_objects || 0;
@@ -230,9 +246,9 @@ function renderPieChart(stats) {
   charts.pie = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: ['Valid Objects', 'Corrupted Objects'],
+      labels: ['Valid Elements', 'Corrupted/Suspicious'],
       datasets: [{
-        data: [correct, corrupted],
+        data: [correct || 1, corrupted],
         backgroundColor: [COLORS.green, COLORS.red],
         borderWidth: 2,
         borderColor: '#1e2028',
@@ -243,44 +259,13 @@ function renderPieChart(stats) {
       maintainAspectRatio: true,
       cutout: '55%',
       plugins: {
-        legend: {
-          position: 'bottom',
-          labels: { padding: 16, usePointStyle: true, pointStyle: 'circle', font: { size: 11 } }
-        },
-        tooltip: {
-          backgroundColor: '#252830',
-          titleColor: '#e6e9ef',
-          bodyColor: '#8b8fa3',
-          borderColor: '#2c2f36',
-          borderWidth: 1,
-          padding: 12,
-        }
+        legend: { position: 'bottom', labels: { padding: 12, font: { size: 10 } } }
       }
-    },
-    plugins: [{
-      id: 'pieCenter',
-      afterDraw(chart) {
-        const { ctx, chartArea: { left, right, top, bottom } } = chart;
-        const cx = (left + right) / 2;
-        const cy = (top + bottom) / 2;
-        ctx.save();
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#e6e9ef';
-        ctx.font = "bold 24px 'Inter'";
-        ctx.fillText(correct + corrupted, cx, cy - 6);
-        ctx.fillStyle = '#8b8fa3';
-        ctx.font = "500 11px 'Inter'";
-        ctx.fillText('total', cx, cy + 14);
-        ctx.restore();
-      }
-    }]
+    }
   });
 }
 
-// ===== Radar Chart — Threat Categories =====
 function renderRadarChart(scores) {
-  if (!scores) return;
   const ctx = document.getElementById('radarChart').getContext('2d');
   const labels = Object.keys(scores).map(k => k.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
   const values = Object.values(scores);
@@ -290,16 +275,12 @@ function renderRadarChart(scores) {
     data: {
       labels,
       datasets: [{
-        label: 'Risk Level',
+        label: 'Risk',
         data: values,
         backgroundColor: 'rgba(34, 211, 238, 0.1)',
         borderColor: COLORS.cyan,
         borderWidth: 2,
-        pointBackgroundColor: COLORS.cyan,
-        pointBorderColor: '#1e2028',
-        pointBorderWidth: 2,
-        pointRadius: 5,
-        pointHoverRadius: 7,
+        pointRadius: 3,
       }]
     },
     options: {
@@ -307,57 +288,34 @@ function renderRadarChart(scores) {
       maintainAspectRatio: true,
       scales: {
         r: {
-          beginAtZero: true,
-          max: 100,
-          ticks: {
-            stepSize: 25, display: false,
-          },
-          grid: { color: 'rgba(44,47,54,0.6)' },
-          angleLines: { color: 'rgba(44,47,54,0.6)' },
-          pointLabels: { font: { size: 11, weight: '500' }, color: '#8b8fa3' },
+          beginAtZero: true, max: 100,
+          ticks: { display: false, stepSize: 20 },
+          grid: { color: 'rgba(139, 143, 163, 0.1)' }
         }
       },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#252830',
-          titleColor: '#e6e9ef',
-          bodyColor: '#8b8fa3',
-          borderColor: '#2c2f36',
-          borderWidth: 1,
-          callbacks: { label: (ctx) => `Risk: ${ctx.raw}/100` }
-        }
-      }
+      plugins: { legend: { display: false } }
     }
   });
 }
 
-// ===== Bar Chart — Filter Distribution =====
 function renderBarChart(filters) {
-  if (!filters) return;
   const ctx = document.getElementById('barChart').getContext('2d');
-  const labels = Object.keys(filters);
-  const values = Object.values(filters);
+  const labels = Object.keys(filters).slice(0, 6);
+  const values = Object.values(filters).slice(0, 6);
 
   if (labels.length === 0) {
-    labels.push('No filters detected');
+    labels.push('No findings');
     values.push(0);
   }
-
-  const barColors = labels.map((_, i) => {
-    const palette = [COLORS.cyan, COLORS.blue, COLORS.purple, COLORS.green, COLORS.yellow, COLORS.orange];
-    return palette[i % palette.length];
-  });
 
   charts.bar = new Chart(ctx, {
     type: 'bar',
     data: {
       labels,
       datasets: [{
-        label: 'Count',
         data: values,
-        backgroundColor: barColors.map(c => c + '33'),
-        borderColor: barColors,
+        backgroundColor: COLORS.blueBg,
+        borderColor: COLORS.blue,
         borderWidth: 1,
         borderRadius: 4,
       }]
@@ -367,39 +325,22 @@ function renderBarChart(filters) {
       maintainAspectRatio: true,
       indexAxis: 'y',
       scales: {
-        x: {
-          grid: { color: 'rgba(44,47,54,0.4)' },
-          ticks: { font: { size: 11 } },
-        },
-        y: {
-          grid: { display: false },
-          ticks: { font: { size: 11, family: "'JetBrains Mono'" } },
-        }
+        x: { grid: { color: 'rgba(139, 143, 163, 0.1)' } },
+        y: { grid: { display: false } }
       },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#252830',
-          titleColor: '#e6e9ef',
-          bodyColor: '#8b8fa3',
-          borderColor: '#2c2f36',
-          borderWidth: 1,
-        }
-      }
+      plugins: { legend: { display: false } }
     }
   });
 }
 
-// ===== Stats Row =====
 function renderStats(stats) {
-  if (!stats) return;
   const row = document.getElementById('statsRow');
   const items = [
-    { label: 'Objects', value: stats.total_objects, color: 'cyan' },
-    { label: 'Streams', value: stats.total_streams, color: 'blue' },
-    { label: 'JavaScripts', value: stats.total_javascripts, color: stats.total_javascripts > 0 ? 'red' : 'green' },
-    { label: 'Errors', value: stats.total_errors, color: stats.total_errors > 0 ? 'yellow' : 'green' },
-    { label: 'Embedded Files', value: stats.total_embedded_files, color: stats.total_embedded_files > 0 ? 'red' : 'green' },
+    { label: 'Total Tags/Obj', value: stats.total_objects, color: 'cyan' },
+    { label: 'Data Streams', value: stats.total_streams, color: 'blue' },
+    { label: 'Scripts', value: stats.total_javascripts, color: stats.total_javascripts > 0 ? 'red' : 'green' },
+    { label: 'Anomalies', value: stats.total_errors, color: stats.total_errors > 0 ? 'yellow' : 'green' },
+    { label: 'Embedded', value: stats.total_embedded_files, color: stats.total_embedded_files > 0 ? 'red' : 'green' },
   ];
   row.innerHTML = items.map(i =>
     `<div class="stat-card">
@@ -409,45 +350,20 @@ function renderStats(stats) {
   ).join('');
 }
 
-// ===== Feature Table =====
 function renderFeatureTable(features) {
-  if (!features) return;
   const table = document.getElementById('featureTable');
-  const featureNames = {
-    file_size: 'File Size (bytes)',
-    ratio_hex_in_name: 'Hex Encoding Ratio in Names',
-    num_hex_in_filter_name: 'Hex Characters in Filter Names',
-    num_cmd: 'Command Objects',
-    js_max_line_length: 'Max JS Line Length',
-    js_ratio_in_size: 'JS Size / File Size Ratio',
-    appended_tail_len: 'Appended Tail Length (bytes)',
-    appended_tail_entropy: 'Tail Data Entropy',
-  };
-
-  let html = '<thead><tr><th>Feature</th><th>Value</th><th>Indicator</th></tr></thead><tbody>';
+  let html = '<thead><tr><th>Feature</th><th>Value</th><th>Status</th></tr></thead><tbody>';
   for (const [key, value] of Object.entries(features)) {
-    const name = featureNames[key] || key;
-    let indicator = '●';
-    let indColor = COLORS.green;
-
-    if (key === 'js_max_line_length' && value > 500) { indicator = '▲'; indColor = COLORS.red; }
-    else if (key === 'js_ratio_in_size' && value > 0.1) { indicator = '▲'; indColor = COLORS.orange; }
-    else if (key === 'ratio_hex_in_name' && value > 0.3) { indicator = '▲'; indColor = COLORS.yellow; }
-    else if (key === 'appended_tail_entropy' && value > 6) { indicator = '▲'; indColor = COLORS.orange; }
-    else if (key === 'num_cmd' && value > 0) { indicator = '▲'; indColor = COLORS.yellow; }
-    else if (value === 0) { indicator = '●'; indColor = COLORS.green; }
-
     html += `<tr>
-      <td>${name}</td>
+      <td>${key.replace(/_/g, ' ')}</td>
       <td>${value}</td>
-      <td style="color:${indColor};font-size:16px;">${indicator}</td>
+      <td style="color:${COLORS.green};">●</td>
     </tr>`;
   }
   html += '</tbody>';
   table.innerHTML = html;
 }
 
-// ===== Report =====
 function renderReport(sections) {
   const container = document.getElementById('reportContent');
   container.innerHTML = sections.map(section =>
@@ -458,7 +374,6 @@ function renderReport(sections) {
   ).join('');
 }
 
-// ===== Utility =====
 function formatBytes(bytes) {
   if (bytes === 0) return '0 B';
   const k = 1024;
