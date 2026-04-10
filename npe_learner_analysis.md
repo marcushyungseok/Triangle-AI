@@ -590,15 +590,17 @@ cd NPELearner/k8s-deploy
 bash deploy.sh
 ```
 
-스크립트가 자동으로 수행하는 작업:
-1. 사전 요구사항(minikube, kubectl, docker) 확인
-2. Minikube 클러스터 실행 상태 확인 (중지 시 자동 시작)
-3. `npe-pdf-analyzer:latest` Docker 이미지 빌드
-4. `npe-dashboard:latest` Docker 이미지 빌드
-5. 두 이미지를 Minikube에 로드
-6. K8s 네임스페이스, Deployment, Service 생성
-7. Pod Ready 상태 대기
-8. 접속 URL 출력
+스크립트 실행 시 선택할 수 있는 배포 모드:
+1.  **Local Mode (Minikube/Kind)**: 이미지를 빌드한 후 자동으로 로컬 클러스터에 로드합니다 (별도의 가입/로그인 불필요).
+2.  **Remote Mode (GKE/EKS/Azure 등)**: 이미지를 빌드한 후 본인의 Docker Hub 등의 이미지 저장소(Registry)로 푸시하고 클러스터에 배포합니다.
+
+스크립트 자동 작업 프로세스:
+1.  사전 요구사항(kubectl, docker) 확인
+2.  배포 모드 선택 및 이미지 저장소 ID 입력(선택)
+3.  `npe-pdf-analyzer` & `npe-dashboard` 이미지 빌드
+4.  이미지 이동 (Local은 클러스터 로드, Remote는 Registry 푸시)
+5.  K8s 매니페스트 동적 생성 및 네임스페이스/Deployment/Service 배포
+6.  Pod Ready 상태 대기 및 접속 정보 출력
 
 ### 2단계: 대시보드 접속
 
