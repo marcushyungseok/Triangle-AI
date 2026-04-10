@@ -12,6 +12,7 @@ let ws = null;
 let trendChart = null;
 let verdictChart = null;
 let currentFilter = 'all';
+let lastKnownCount = 0;
 
 // ===== Persistent History (localStorage) =====
 const STORAGE_KEY = 'triangle_scan_history';
@@ -52,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Render existing history immediately
   renderHistory(loadHistory());
   renderHistoryStats(loadHistory());
-  setInterval(fetchData, 5000);
+  setInterval(fetchData, 10000);
 });
 
 // ===== Health =====
@@ -102,8 +103,12 @@ async function fetchData() {
 
 // ===== Central Update Handler =====
 function handleUpdate(incomingEvents, stats) {
+  // Skip if nothing new — prevents flickering
+  const { history } = mergeEvents(incomingEvents || []);
+  if (history.length === lastKnownCount) return;
+  lastKnownCount = history.length;
   // 1. Merge new events into persistent history
-  const { history, added } = mergeEvents(incomingEvents || []);
+  const added = history.length - (lastKnownCount - (history.length - lastKnownCount));
 
   // 2. Update live activity (only show latest 5 from this session)
   updateLiveFeed(incomingEvents || []);
