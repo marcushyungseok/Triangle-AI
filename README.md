@@ -4,7 +4,18 @@
 
 **Triangle**은 **파일 기반 악성코드 탐지를 위한 분산 머신러닝 프레임워크**입니다.
 
-주로 **PDF, SWF(Flash)** 등의 파일 포맷을 분석하여 구조적 특징(feature)을 추출하고, 이를 기반으로 **TensorFlow 신경망**을 사용하여 **양성(benign) / 악성(malicious)** 파일을 분류합니다.
+주로 **PDF, MS Office, JavaScript, HTML, LNK, SWF** 등의 다양한 파일 포맷을 분석하여 구조적 특징(feature)을 추출하고, 이를 기반으로 **정적 분석 및 머신러닝**을 사용하여 **양성(benign) / 악성(malicious)** 파일을 분류합니다.
+
+### 📁 분석 지원 파일 및 탐지 범위
+
+| 파일 타입 | 확장자 | 탐지/분석 주요 내용 |
+|:---|:---|:---|
+| **PDF** | `.pdf` | JavaScript 엔진, 임베디드 PE, 스트림 난독화, 구조적 손상 분석 |
+| **MS Office** | `.docx, .docm, .xlsx, .xlsm` | VBA 매크로 위협 탐지 (MacroRaptor), 외부 연결 및 난독화 분석 |
+| **Scripts** | `.js, .vbs, .ps1` | `eval`, `unescape`, `PowerShell/CMD` 실행 패턴 및 난독화 탐지 |
+| **Web** | `.html, .htm` | 유해 스크립트 태그, ActiveX 객체, 피싱/XSS 패턴 분석 |
+| **Windows Link** | `.lnk` | 파워쉘/명령프롬프트를 이용한 2차 페이로드 다운로드 및 실행 탐지 |
+| **Flash** | `.swf` | ActionScript API 호출 패턴 및 YARA 규칙 기반 위협 분석 |
 
 > [!IMPORTANT]
 > 이 시스템은 단일 서버가 아닌 **Master-Slave 클러스터** 아키텍처로 설계되어 있습니다. XMLRPC 기반의 분산 처리를 통해 대량의 파일을 병렬로 파싱하고 학습합니다.
