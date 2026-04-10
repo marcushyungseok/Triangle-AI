@@ -1,3 +1,31 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: triangle-scanner-sa
+  namespace: npe-learner
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: triangle-scanner-role
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list", "get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: triangle-scanner-binding
+subjects:
+  - kind: ServiceAccount
+    name: triangle-scanner-sa
+    namespace: npe-learner
+roleRef:
+  kind: ClusterRole
+  name: triangle-scanner-role
+  apiGroup: rbac.authorization.k8s.io
+---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -14,9 +42,10 @@ spec:
       labels:
         app: triangle-scanner
     spec:
+      serviceAccountName: triangle-scanner-sa
       containers:
         - name: scanner
-          image: triangle-scanner:v1
+          image: triangle-scanner:v3
           imagePullPolicy: IfNotPresent
           env:
             - name: ANALYZER_URL
@@ -30,7 +59,6 @@ spec:
           volumeMounts:
             - name: host-tmp
               mountPath: /host-fs
-              readOnly: true
           resources:
             requests:
               memory: "32Mi"
@@ -42,4 +70,4 @@ spec:
         - name: host-tmp
           hostPath:
             path: /tmp
-            type: Directory
+            type: DirectoryOrCreate
