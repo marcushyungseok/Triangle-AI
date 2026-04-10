@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NPE Learner — PDF Threat Analyzer</title>
+  <meta name="description" content="Advanced PDF malware analysis dashboard powered by NPE Learner">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Top Navigation -->
+  <nav class="top-nav">
+    <div class="nav-left">
+      <div class="logo">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+        <span class="logo-text">NPE Learner</span>
+      </div>
+      <span class="nav-separator">|</span>
+      <span class="nav-title">PDF Threat Analyzer</span>
+    </div>
+    <div class="nav-right">
+      <div class="status-indicator" id="statusIndicator">
+        <span class="status-dot"></span>
+        <span class="status-text">Checking...</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Upload Section -->
+    <section class="upload-section" id="uploadSection">
+      <div class="upload-zone" id="uploadZone">
+        <div class="upload-icon">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14,2 14,8 20,8"/>
+            <line x1="12" y1="18" x2="12" y2="12"/>
+            <polyline points="9,15 12,12 15,15"/>
+          </svg>
+        </div>
+        <h2 class="upload-title">Drop PDF file here to analyze</h2>
+        <p class="upload-subtitle">or click to browse files • Max 50MB</p>
+        <input type="file" id="fileInput" accept=".pdf,application/pdf" hidden>
+      </div>
+    </section>
+
+    <!-- Loading -->
+    <section class="loading-section" id="loadingSection" style="display:none;">
+      <div class="loading-spinner"></div>
+      <p class="loading-text">Analyzing PDF structure...</p>
+      <p class="loading-subtext">Extracting features, scanning for threats</p>
+    </section>
+
+    <!-- Results Dashboard -->
+    <section class="dashboard" id="dashboard" style="display:none;">
+      <!-- File Info Bar -->
+      <div class="file-info-bar" id="fileInfoBar"></div>
+
+      <!-- Top Row: Verdict + Gauge + Pie -->
+      <div class="panel-row top-row">
+        <div class="panel verdict-panel" id="verdictPanel">
+          <div class="panel-header"><span class="panel-title">Verdict</span></div>
+          <div class="panel-body verdict-body" id="verdictBody"></div>
+        </div>
+        <div class="panel gauge-panel">
+          <div class="panel-header"><span class="panel-title">Risk Score</span></div>
+          <div class="panel-body"><canvas id="gaugeChart"></canvas></div>
+        </div>
+        <div class="panel pie-panel">
+          <div class="panel-header"><span class="panel-title">Object Integrity</span></div>
+          <div class="panel-body"><canvas id="pieChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Mid Row: Radar + Bar -->
+      <div class="panel-row mid-row">
+        <div class="panel radar-panel">
+          <div class="panel-header"><span class="panel-title">Threat Categories</span></div>
+          <div class="panel-body"><canvas id="radarChart"></canvas></div>
+        </div>
+        <div class="panel bar-panel">
+          <div class="panel-header"><span class="panel-title">Stream Filter Distribution</span></div>
+          <div class="panel-body"><canvas id="barChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Stats Row -->
+      <div class="panel-row stats-row" id="statsRow"></div>
+
+      <!-- Feature Table -->
+      <div class="panel table-panel">
+        <div class="panel-header"><span class="panel-title">Raw Feature Values</span></div>
+        <div class="panel-body"><table class="feature-table" id="featureTable"></table></div>
+      </div>
+
+      <!-- Report Sections -->
+      <div class="report-section" id="reportSection">
+        <div class="report-header">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14,2 14,8 20,8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10,9 9,9 8,9"/>
+          </svg>
+          <h2>Detailed Analysis Report</h2>
+        </div>
+        <div id="reportContent"></div>
+      </div>
+
+      <!-- New Analysis Button -->
+      <button class="btn-new-analysis" id="btnNewAnalysis">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="1,4 1,10 7,10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+        </svg>
+        Analyze Another File
+      </button>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

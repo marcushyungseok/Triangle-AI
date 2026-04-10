@@ -1,0 +1,7 @@
+(Tested in Ubuntu 14.04 Desktop x64)
+
+1. To access the Docker, the current user (in this case, learner) must be included in the docker group. 
+$ sudo usermod -a -G docker learner
+
+2. Install python3 library for docker
+$ sudo pip3 install docker-py
