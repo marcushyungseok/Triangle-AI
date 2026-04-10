@@ -1,12 +1,17 @@
 /* ============================================= */
 /*  Triangle AI Security Hub — Client Logic      */
+/*  Grafana-inspired charts and real-time feed   */
 /* ============================================= */
-Chart.defaults.color = '#8b949e';
-Chart.defaults.borderColor = '#30363d';
-Chart.defaults.font.family = "'Inter', sans-serif";
+
+// Grafana chart defaults
+Chart.defaults.color = '#8892a4';
+Chart.defaults.borderColor = '#2c3038';
+Chart.defaults.font.family = "'Roboto', 'Helvetica Neue', Arial, sans-serif";
+Chart.defaults.font.size = 11;
 
 let ws = null;
 let trendChart = null;
+let verdictChart = null;
 let allEvents = [];
 let currentFilter = 'all';
 
@@ -16,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
   connectWebSocket();
   setupFilterButtons();
   initTrendChart();
-  // Fallback polling if WS fails
+  initVerdictChart();
   setInterval(fetchData, 5000);
 });
 
@@ -45,41 +50,37 @@ function connectWebSocket() {
   ws.onopen = () => {
     wsEl.innerHTML = '<span class="ws-dot connected"></span><span class="ws-text">Live</span>';
   };
-
   ws.onmessage = (event) => {
     const msg = JSON.parse(event.data);
-    if (msg.type === 'update') {
-      updateDashboard(msg.events, msg.stats);
-    }
+    if (msg.type === 'update') updateDashboard(msg.events, msg.stats);
   };
-
   ws.onclose = () => {
     wsEl.innerHTML = '<span class="ws-dot disconnected"></span><span class="ws-text">Reconnecting...</span>';
     setTimeout(connectWebSocket, 3000);
   };
-
   ws.onerror = () => ws.close();
 }
 
-// ===== Fallback Fetch =====
+// ===== Fallback =====
 async function fetchData() {
-  if (ws && ws.readyState === 1) return; // WS is working
+  if (ws && ws.readyState === 1) return;
   try {
     const [evRes, stRes] = await Promise.all([
       fetch('/api/events').then(r => r.json()),
       fetch('/api/stats').then(r => r.json()),
     ]);
     updateDashboard(evRes.events, stRes);
-  } catch { /* ignored */ }
+  } catch {}
 }
 
-// ===== Update Dashboard =====
+// ===== Dashboard Update =====
 function updateDashboard(events, stats) {
   allEvents = events || [];
   updateStats(stats);
   updateNodeMap(stats.nodes || {});
   updateFeed(allEvents);
   updateTrendChart(stats.timeline || []);
+  updateVerdictChart(stats);
   updateAIPanel(allEvents);
 }
 
@@ -96,9 +97,19 @@ function animateValue(id, target) {
   const el = document.getElementById(id);
   const current = parseInt(el.textContent) || 0;
   if (current === target) return;
-  el.textContent = target;
-  el.style.transform = 'scale(1.15)';
-  setTimeout(() => el.style.transform = 'scale(1)', 200);
+  // Simple count-up animation
+  const diff = target - current;
+  const steps = Math.min(Math.abs(diff), 15);
+  const stepVal = diff / steps;
+  let i = 0;
+  const timer = setInterval(() => {
+    i++;
+    el.textContent = Math.round(current + stepVal * i);
+    if (i >= steps) {
+      el.textContent = target;
+      clearInterval(timer);
+    }
+  }, 30);
 }
 
 // ===== Node Map =====
@@ -111,16 +122,18 @@ function updateNodeMap(nodes) {
   let html = '<div class="node-grid">';
   for (const [name, data] of Object.entries(nodes)) {
     const pct = data.total > 0 ? Math.round((data.threats / data.total) * 100) : 0;
-    const cls = data.high_risk > 0 ? 'threat' : (data.threats > 0 ? '' : 'clean');
+    const cls = data.high_risk > 0 ? 'threat' : (data.threats > 0 ? 'warning' : 'clean');
     const barColor = data.high_risk > 0 ? 'var(--accent-red)' : (data.threats > 0 ? 'var(--accent-orange)' : 'var(--accent-green)');
     html += `
       <div class="node-card ${cls}">
-        <div class="node-name">🖥️ ${name}</div>
+        <div class="node-name">● ${name}</div>
         <div class="node-stats">
-          Scanned: ${data.total} &nbsp;|&nbsp; Threats: ${data.threats} &nbsp;|&nbsp; Critical: ${data.high_risk}
+          <span class="node-stat-item">Scanned: <span class="node-stat-value">${data.total}</span></span>
+          <span class="node-stat-item">Threats: <span class="node-stat-value" style="color:var(--accent-orange)">${data.threats}</span></span>
+          <span class="node-stat-item">Critical: <span class="node-stat-value" style="color:var(--accent-red)">${data.high_risk}</span></span>
         </div>
         <div class="node-threat-bar">
-          <div class="node-threat-fill" style="width:${pct}%;background:${barColor}"></div>
+          <div class="node-threat-fill" style="width:${Math.max(pct, 2)}%;background:${barColor}"></div>
         </div>
       </div>`;
   }
@@ -143,7 +156,7 @@ function updateFeed(events) {
     const time = new Date(e.timestamp).toLocaleTimeString();
     const cls = e.verdict === 'HIGH RISK' ? 'HIGH' : e.verdict === 'MEDIUM RISK' ? 'MEDIUM' : e.verdict === 'CLEAN' ? 'CLEAN' : 'UNKNOWN';
     const scoreCls = e.risk_score >= 60 ? 'score-high' : e.risk_score >= 25 ? 'score-medium' : 'score-low';
-    const detail = e.details && e.details.length > 0 ? e.details[0].substring(0, 40) : '—';
+    const detail = e.details && e.details.length > 0 ? e.details[0] : '—';
     return `<tr class="${i === 0 ? 'new-event' : ''}">
       <td>${time}</td>
       <td>${e.node_name}</td>
@@ -167,7 +180,7 @@ function setupFilterButtons() {
   });
 }
 
-// ===== Trend Chart =====
+// ===== Trend Chart (Area) =====
 function initTrendChart() {
   const ctx = document.getElementById('trendChart').getContext('2d');
   trendChart = new Chart(ctx, {
@@ -177,25 +190,55 @@ function initTrendChart() {
       datasets: [{
         label: 'Risk Score',
         data: [],
-        borderColor: '#58a6ff',
-        backgroundColor: 'rgba(88,166,255,0.08)',
+        borderColor: '#5794f2',
+        backgroundColor: createGradient(ctx, 'rgba(87,148,242,0.25)', 'rgba(87,148,242,0.02)'),
         fill: true,
-        tension: 0.4,
+        tension: 0.35,
         borderWidth: 2,
-        pointRadius: 3,
-        pointBackgroundColor: '#58a6ff',
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        pointBackgroundColor: '#5794f2',
+        pointBorderColor: '#22262c',
+        pointBorderWidth: 2,
       }]
     },
     options: {
-      responsive: true, maintainAspectRatio: true,
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 4 } },
       scales: {
-        x: { display: true, grid: { color: 'rgba(48,54,61,0.5)' } },
-        y: { beginAtZero: true, max: 100, grid: { color: 'rgba(48,54,61,0.5)' } }
+        x: {
+          display: true,
+          grid: { color: 'rgba(44,48,56,0.6)', drawBorder: false },
+          ticks: { maxTicksLimit: 8, font: { size: 10 } }
+        },
+        y: {
+          beginAtZero: true, max: 100,
+          grid: { color: 'rgba(44,48,56,0.6)', drawBorder: false },
+          ticks: { stepSize: 25, font: { size: 10 } }
+        }
       },
-      plugins: { legend: { display: false } },
-      animation: { duration: 400 }
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1e2228',
+          borderColor: '#3a3f4a',
+          borderWidth: 1,
+          titleFont: { family: "'Roboto', sans-serif", size: 12 },
+          bodyFont: { family: "'Roboto Mono', monospace", size: 11 },
+          padding: 10,
+          cornerRadius: 4,
+        }
+      },
+      animation: { duration: 300 }
     }
   });
+}
+
+function createGradient(ctx, top, bottom) {
+  const g = ctx.createLinearGradient(0, 0, 0, 250);
+  g.addColorStop(0, top);
+  g.addColorStop(1, bottom);
+  return g;
 }
 
 function updateTrendChart(timeline) {
@@ -204,29 +247,85 @@ function updateTrendChart(timeline) {
   const data = timeline.map(t => t.s).reverse();
   trendChart.data.labels = labels;
   trendChart.data.datasets[0].data = data;
-  // Color points by severity
   trendChart.data.datasets[0].pointBackgroundColor = data.map(s =>
-    s >= 60 ? '#f85149' : s >= 25 ? '#db6d28' : '#3fb950'
+    s >= 60 ? '#f2495c' : s >= 25 ? '#ff9830' : '#73bf69'
   );
   trendChart.update('none');
+}
+
+// ===== Verdict Donut Chart =====
+function initVerdictChart() {
+  const ctx = document.getElementById('verdictChart').getContext('2d');
+  verdictChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['High Risk', 'Medium Risk', 'Clean', 'Unknown'],
+      datasets: [{
+        data: [0, 0, 0, 0],
+        backgroundColor: ['#f2495c', '#ff9830', '#73bf69', '#5a6270'],
+        borderWidth: 0,
+        spacing: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '72%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            padding: 12, usePointStyle: true, pointStyle: 'circle',
+            font: { size: 10, family: "'Roboto', sans-serif" }
+          }
+        },
+        tooltip: {
+          backgroundColor: '#1e2228', borderColor: '#3a3f4a', borderWidth: 1,
+          padding: 10, cornerRadius: 4,
+        }
+      },
+    },
+    plugins: [{
+      id: 'centerText',
+      afterDraw(chart) {
+        const { ctx: c, chartArea: { left, right, top, bottom } } = chart;
+        const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+        const cx = (left + right) / 2;
+        const cy = (top + bottom) / 2;
+        c.save();
+        c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.fillStyle = '#d8dee9';
+        c.font = "300 28px 'Roboto'";
+        c.fillText(total, cx, cy - 6);
+        c.fillStyle = '#5a6270';
+        c.font = "500 10px 'Roboto'";
+        c.fillText('TOTAL', cx, cy + 16);
+        c.restore();
+      }
+    }]
+  });
+}
+
+function updateVerdictChart(stats) {
+  if (!verdictChart) return;
+  const high = stats.high_risk || 0;
+  const medium = (stats.threats_detected || 0) - high;
+  const clean = stats.clean_files || 0;
+  const unknown = (stats.total_scans || 0) - high - medium - clean;
+  verdictChart.data.datasets[0].data = [high, Math.max(medium, 0), clean, Math.max(unknown, 0)];
+  verdictChart.update('none');
 }
 
 // ===== AI Panel =====
 function updateAIPanel(events) {
   const panel = document.getElementById('aiPanel');
   const content = document.getElementById('aiContent');
-  const highRisk = events.filter(e => e.ai_insight && e.ai_insight.length > 10);
-  if (!highRisk.length) {
-    panel.style.display = 'none';
-    return;
-  }
+  const highRisk = events.filter(e => e.ai_insight && e.ai_insight.length > 20);
+  if (!highRisk.length) { panel.style.display = 'none'; return; }
   panel.style.display = 'block';
   content.innerHTML = highRisk.slice(0, 3).map(e =>
-    `<div style="margin-bottom:16px;padding:12px;background:var(--bg-secondary);border-radius:8px;border-left:3px solid var(--accent-red)">
-      <div style="font-size:11px;color:var(--accent-red);margin-bottom:6px;font-weight:600">
-        ⚠ ${e.filename} — ${e.node_name} — Score: ${e.risk_score}
-      </div>
-      <div style="font-size:12px;line-height:1.6;color:var(--text-secondary)">${e.ai_insight}</div>
+    `<div class="ai-insight-card">
+      <div class="ai-insight-header">⚠ ${e.filename} — ${e.node_name} — Score: ${e.risk_score}</div>
+      <div class="ai-insight-body">${e.ai_insight}</div>
     </div>`
   ).join('');
 }

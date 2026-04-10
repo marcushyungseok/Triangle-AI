@@ -76,11 +76,11 @@
       </div>
     </div>
 
-    <!-- Middle Row: Node Map + Trend Chart -->
+    <!-- Middle Row: Node Map + Trend Chart + Verdict Chart -->
     <div class="panel-row mid-row">
       <div class="panel node-panel">
         <div class="panel-header">
-          <span class="panel-title">🏗️ Cluster Node Threat Map</span>
+          <span class="panel-title">🏗️ Cluster Nodes</span>
         </div>
         <div class="panel-body" id="nodeMap">
           <div class="empty-state">Waiting for scanner data...</div>
@@ -88,42 +88,55 @@
       </div>
       <div class="panel chart-panel">
         <div class="panel-header">
-          <span class="panel-title">📈 Threat Trend</span>
+          <span class="panel-title">📈 Risk Score Timeline</span>
         </div>
-        <div class="panel-body"><canvas id="trendChart"></canvas></div>
+        <div class="panel-body" style="padding:12px 14px;height:260px;">
+          <canvas id="trendChart"></canvas>
+        </div>
       </div>
     </div>
 
-    <!-- Live Threat Feed -->
-    <div class="panel feed-panel">
-      <div class="panel-header">
-        <span class="panel-title">🔴 Live Threat Feed</span>
-        <div class="feed-controls">
-          <button class="feed-btn active" data-filter="all">All</button>
-          <button class="feed-btn" data-filter="HIGH RISK">High</button>
-          <button class="feed-btn" data-filter="MEDIUM RISK">Medium</button>
-          <button class="feed-btn" data-filter="CLEAN">Clean</button>
+    <!-- Second Row: Verdict Donut + Feed -->
+    <div class="panel-row" style="grid-template-columns: 280px 1fr; gap:8px; margin-bottom:8px;">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">🎯 Verdict Distribution</span>
+        </div>
+        <div class="panel-body" style="padding:16px;height:300px;">
+          <canvas id="verdictChart"></canvas>
         </div>
       </div>
-      <div class="panel-body feed-body">
-        <table class="feed-table">
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>Node</th>
-              <th>File</th>
-              <th>Type</th>
-              <th>Score</th>
-              <th>Verdict</th>
-              <th>Details</th>
-            </tr>
-          </thead>
-          <tbody id="feedBody">
-            <tr class="empty-row"><td colspan="7">No events yet. Waiting for scanner reports...</td></tr>
-          </tbody>
-        </table>
+      <div class="panel feed-panel">
+        <div class="panel-header">
+          <span class="panel-title">🔴 Live Threat Feed</span>
+          <div class="feed-controls">
+            <button class="feed-btn active" data-filter="all">All</button>
+            <button class="feed-btn" data-filter="HIGH RISK">High</button>
+            <button class="feed-btn" data-filter="MEDIUM RISK">Medium</button>
+            <button class="feed-btn" data-filter="CLEAN">Clean</button>
+          </div>
+        </div>
+        <div class="panel-body feed-body">
+          <table class="feed-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Node</th>
+                <th>File</th>
+                <th>Type</th>
+                <th>Score</th>
+                <th>Verdict</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="feedBody">
+              <tr class="empty-row"><td colspan="7">No events yet. Waiting for scanner reports...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
+
 
     <!-- AI Forensics Panel -->
     <div class="panel ai-panel" id="aiPanel" style="display:none;">
