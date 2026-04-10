@@ -31,7 +31,7 @@ async function checkHealth() {
   try {
     const res = await fetch('/api/health');
     const data = await res.json();
-    if (data.status === 'ok') {
+    if (data.analyzer === 'ok') {
       el.innerHTML = '<span class="status-dot online"></span><span class="status-text">Multi-Analyzer Online</span>';
     } else {
       el.innerHTML = '<span class="status-dot offline"></span><span class="status-text">Analyzer Offline</span>';
