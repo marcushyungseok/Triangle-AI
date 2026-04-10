@@ -1,0 +1,9 @@
+(Tested in Ubuntu 14.04 Desktop x64)
+
+1. Install nfs server
+$ sudo apt-get install nfs-kernel-server
+
+2. Open ./exports and modify its contents and then append it to the back of /etc/exports
+
+3. Restart nfs server
+$ sudo service nfs-kernel-server restart
