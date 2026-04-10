@@ -521,7 +521,7 @@ src/
 NPE Learner의 PDF 분석 엔진을 Kubernetes에 컨테이너로 배포하고, 웹 대시보드에서 분석 결과를 시각화하는 서비스입니다.
 
 > [!NOTE]
-> 이 배포 패키지는 `k8s-deploy/` 디렉토리에 위치합니다. `deploy.sh` 스크립트 한 번 실행으로 이미지 빌드부터 K8s 배포까지 자동으로 완료됩니다.
+> 이 배포 패키지는 `k8s-deploy/` 디렉토리에 위치하며, **PDF, MS Office, JavaScript, HTML, LNK** 등 다양한 파일 포맷에 대한 정적 분석 및 위협 탐지를 지원하는 멀티 포맷 분석 엔진으로 고도화되었습니다.
 
 ### 배포 아키텍처
 
@@ -532,13 +532,13 @@ graph TB
             DASH["Dashboard<br/>(Node.js + Express + Chart.js)<br/>Port 3000"]
         end
         subgraph "Backend Pod"
-            API["PDF Analyzer API<br/>(Python Flask + Gunicorn)<br/>Port 5000"]
+            API["Multi-Format Analyzer API<br/>(Python Flask + Gunicorn)<br/>Port 5000"]
         end
         DASH_SVC["dashboard-service<br/>(NodePort 30090)"]
-        API_SVC["pdf-analyzer-service<br/>(ClusterIP)"]
+        API_SVC["multi-analyzer-service<br/>(ClusterIP)"]
     end
 
-    USER["사용자 브라우저"] -->|"PDF 업로드"| DASH_SVC
+    USER["사용자 브라우저"] -->|"파일 업로드 (PDF, Office, JS 등)"| DASH_SVC
     DASH_SVC --> DASH
     DASH -->|"POST /analyze"| API_SVC
     API_SVC --> API

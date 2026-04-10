@@ -31,8 +31,8 @@ async function checkHealth() {
   try {
     const res = await fetch('/api/health');
     const data = await res.json();
-    if (data.analyzer === 'ok') {
-      el.innerHTML = '<span class="status-dot online"></span><span class="status-text">Analyzer Online</span>';
+    if (data.status === 'ok') {
+      el.innerHTML = '<span class="status-dot online"></span><span class="status-text">Multi-Analyzer Online</span>';
     } else {
       el.innerHTML = '<span class="status-dot offline"></span><span class="status-text">Analyzer Offline</span>';
     }
@@ -69,8 +69,12 @@ function setupUpload() {
 }
 
 async function handleFile(file) {
-  if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
-    alert('Please upload a PDF file.');
+  // Accepted extensions
+  const allowed = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.js', '.html', '.htm', '.lnk', '.docm', '.xlsm', '.vbs', '.ps1'];
+  const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+  
+  if (!allowed.includes(ext)) {
+    alert('Unsupported file type. Supported: PDF, Office, JS, HTML, LNK');
     return;
   }
 
@@ -113,24 +117,42 @@ function renderDashboard(data) {
   document.getElementById('loadingSection').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
 
-  renderFileInfo(data.file_info);
+  renderFileInfo(data.file_info, data.type);
   renderVerdict(data);
   renderGaugeChart(data.risk_score);
-  renderPieChart(data.statistics);
-  renderRadarChart(data.category_scores);
-  renderBarChart(data.charts.filter_distribution);
-  renderStats(data.statistics);
-  renderFeatureTable(data.raw_features);
+  
+  // Conditionally render PDF specific charts
+  if (data.type === 'PDF Document' && data.statistics) {
+    document.querySelector('.pie-panel').style.display = 'block';
+    document.querySelector('.radar-panel').style.display = 'block';
+    document.querySelector('.bar-panel').style.display = 'block';
+    document.querySelector('.table-panel').style.display = 'block';
+    document.getElementById('statsRow').style.display = 'grid';
+
+    renderPieChart(data.statistics);
+    renderRadarChart(data.category_scores);
+    renderBarChart(data.charts.filter_distribution);
+    renderStats(data.statistics);
+    renderFeatureTable(data.raw_features);
+  } else {
+    // Hide non-relevant panels for other formats
+    document.querySelector('.pie-panel').style.display = 'none';
+    document.querySelector('.radar-panel').style.display = 'none';
+    document.querySelector('.bar-panel').style.display = 'none';
+    document.querySelector('.table-panel').style.display = 'none';
+    document.getElementById('statsRow').style.display = 'none';
+  }
+  
   renderReport(data.report);
 }
 
 // ===== File Info Bar =====
-function renderFileInfo(info) {
+function renderFileInfo(info, fileType) {
   const bar = document.getElementById('fileInfoBar');
   const items = [
     { label: 'File', value: info.filename },
+    { label: 'Format', value: fileType },
     { label: 'Size', value: formatBytes(info.size) },
-    { label: 'PDF Version', value: info.pdf_version },
     { label: 'SHA256', value: info.sha256.substring(0, 16) + '...' },
     { label: 'Analyzed', value: new Date(info.analyzed_at).toLocaleString() },
   ];
@@ -146,7 +168,7 @@ function renderFileInfo(info) {
 function renderVerdict(data) {
   const body = document.getElementById('verdictBody');
   const v = data.verdict;
-  const cls = v === 'CLEAN' ? 'CLEAN' : v === 'LOW RISK' ? 'LOW' : v === 'MEDIUM RISK' ? 'MEDIUM' : 'HIGH';
+  const cls = v === 'CLEAN' ? 'CLEAN' : v === 'LOW RISK' || v === 'UNKNOWN' ? 'LOW' : v === 'MEDIUM RISK' ? 'MEDIUM' : 'HIGH';
   body.innerHTML = `
     <div class="verdict-badge verdict-${cls}">${v}</div>
     <p class="verdict-desc">${data.report[0].content}</p>
@@ -258,6 +280,7 @@ function renderPieChart(stats) {
 
 // ===== Radar Chart — Threat Categories =====
 function renderRadarChart(scores) {
+  if (!scores) return;
   const ctx = document.getElementById('radarChart').getContext('2d');
   const labels = Object.keys(scores).map(k => k.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
   const values = Object.values(scores);
@@ -311,6 +334,7 @@ function renderRadarChart(scores) {
 
 // ===== Bar Chart — Filter Distribution =====
 function renderBarChart(filters) {
+  if (!filters) return;
   const ctx = document.getElementById('barChart').getContext('2d');
   const labels = Object.keys(filters);
   const values = Object.values(filters);
@@ -368,6 +392,7 @@ function renderBarChart(filters) {
 
 // ===== Stats Row =====
 function renderStats(stats) {
+  if (!stats) return;
   const row = document.getElementById('statsRow');
   const items = [
     { label: 'Objects', value: stats.total_objects, color: 'cyan' },
@@ -386,6 +411,7 @@ function renderStats(stats) {
 
 // ===== Feature Table =====
 function renderFeatureTable(features) {
+  if (!features) return;
   const table = document.getElementById('featureTable');
   const featureNames = {
     file_size: 'File Size (bytes)',
@@ -424,10 +450,10 @@ function renderFeatureTable(features) {
 // ===== Report =====
 function renderReport(sections) {
   const container = document.getElementById('reportContent');
-  container.innerHTML = sections.slice(1).map(section =>
+  container.innerHTML = sections.map(section =>
     `<div class="report-card">
       <div class="report-card-title">${section.title}</div>
-      <div class="report-card-content">${section.content}</div>
+      <div class="report-card-content">${section.content.replace(/\n/g, '<br/>')}</div>
     </div>`
   ).join('');
 }

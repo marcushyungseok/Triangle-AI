@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NPE Learner — PDF Threat Analyzer</title>
-  <meta name="description" content="Advanced PDF malware analysis dashboard powered by NPE Learner">
+  <title>NPE Learner — Multi-Format Threat Analyzer</title>
+  <meta name="description" content="Advanced multi-format malware analysis dashboard powered by NPE Learner">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
@@ -22,7 +22,7 @@
         <span class="logo-text">NPE Learner</span>
       </div>
       <span class="nav-separator">|</span>
-      <span class="nav-title">PDF Threat Analyzer</span>
+      <span class="nav-title">Multi-Format Analyzer</span>
     </div>
     <div class="nav-right">
       <div class="status-indicator" id="statusIndicator">
@@ -45,17 +45,17 @@
             <polyline points="9,15 12,12 15,15"/>
           </svg>
         </div>
-        <h2 class="upload-title">Drop PDF file here to analyze</h2>
-        <p class="upload-subtitle">or click to browse files • Max 50MB</p>
-        <input type="file" id="fileInput" accept=".pdf,application/pdf" hidden>
+        <h2 class="upload-title">Drop PDF, Office, or Script file here</h2>
+        <p class="upload-subtitle">Supports PDF, DOCX, JS, HTML, LNK • Max 50MB</p>
+        <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.xls,.xlsx,.js,.html,.htm,.lnk" hidden>
       </div>
     </section>
 
     <!-- Loading -->
     <section class="loading-section" id="loadingSection" style="display:none;">
       <div class="loading-spinner"></div>
-      <p class="loading-text">Analyzing PDF structure...</p>
-      <p class="loading-subtext">Extracting features, scanning for threats</p>
+      <p class="loading-text">Analyzing file structure...</p>
+      <p class="loading-subtext">Checking signatures, static analysis, scanning for threats</p>
     </section>
 
     <!-- Results Dashboard -->

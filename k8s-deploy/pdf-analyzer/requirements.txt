@@ -1,3 +1,5 @@
 flask==3.1.1
 flask-cors==5.0.1
 gunicorn==23.0.0
+oletools==0.60
+python-magic==0.4.27
