@@ -1,8 +1,8 @@
-# NPE Learner — 코드 분석 보고서
+# Triangle
 
 ## 📌 개요
 
-**NPE Learner**는 **파일 기반 악성코드 탐지를 위한 분산 머신러닝 프레임워크**입니다.
+**Triangle**은 **파일 기반 악성코드 탐지를 위한 분산 머신러닝 프레임워크**입니다.
 
 주로 **PDF, SWF(Flash)** 등의 파일 포맷을 분석하여 구조적 특징(feature)을 추출하고, 이를 기반으로 **TensorFlow 신경망**을 사용하여 **양성(benign) / 악성(malicious)** 파일을 분류합니다.
 
