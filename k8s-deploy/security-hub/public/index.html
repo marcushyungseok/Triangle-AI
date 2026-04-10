@@ -25,6 +25,7 @@
       <span class="nav-badge">CLOUD NATIVE</span>
     </div>
     <div class="nav-right">
+      <span id="newBadge" class="new-badge" style="display:none">+0</span>
       <div class="ws-status" id="wsStatus">
         <span class="ws-dot"></span>
         <span class="ws-text">Connecting...</span>
@@ -96,7 +97,7 @@
       </div>
     </div>
 
-    <!-- Row 2: Verdict Distribution + Live Threat Feed -->
+    <!-- Row 2: Verdict + Live Activity -->
     <div class="panel-row bottom-row">
       <div class="panel verdict-panel">
         <div class="panel-header">
@@ -106,17 +107,12 @@
           <canvas id="verdictChart"></canvas>
         </div>
       </div>
-      <div class="panel feed-panel">
+      <div class="panel">
         <div class="panel-header">
-          <span class="panel-title">🔴 Live Threat Feed</span>
-          <div class="feed-controls">
-            <button class="feed-btn active" data-filter="all">All</button>
-            <button class="feed-btn" data-filter="HIGH RISK">High</button>
-            <button class="feed-btn" data-filter="MEDIUM RISK">Medium</button>
-            <button class="feed-btn" data-filter="CLEAN">Clean</button>
-          </div>
+          <span class="panel-title">⚡ Live Activity</span>
+          <span class="panel-subtitle">Latest 5 detections</span>
         </div>
-        <div class="panel-body feed-body">
+        <div class="panel-body live-feed-body">
           <table class="feed-table">
             <thead>
               <tr>
@@ -128,14 +124,47 @@
                 <th>Node</th>
                 <th>File Path</th>
                 <th>Type</th>
-                <th>Details</th>
               </tr>
             </thead>
-            <tbody id="feedBody">
-              <tr class="empty-row"><td colspan="9">No events yet. Waiting for scanner reports...</td></tr>
+            <tbody id="liveFeedBody">
+              <tr class="empty-row"><td colspan="8">Waiting for live detections...</td></tr>
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- Row 3: Scan History (Persistent) -->
+    <div class="panel history-panel">
+      <div class="panel-header">
+        <span class="panel-title">📋 Scan History</span>
+        <div class="history-controls">
+          <span class="history-count" id="historyCount">0 / 0</span>
+          <button class="history-btn active" data-filter="all">All</button>
+          <button class="history-btn" data-filter="HIGH RISK">High</button>
+          <button class="history-btn" data-filter="MEDIUM RISK">Medium</button>
+          <button class="history-btn" data-filter="CLEAN">Clean</button>
+        </div>
+      </div>
+      <div class="panel-body history-body">
+        <table class="feed-table history-table">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Verdict</th>
+              <th>Score</th>
+              <th>Namespace</th>
+              <th>Pod</th>
+              <th>Node</th>
+              <th>File Path</th>
+              <th>Type</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody">
+            <tr class="empty-row"><td colspan="9">No scan results recorded yet.</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
 

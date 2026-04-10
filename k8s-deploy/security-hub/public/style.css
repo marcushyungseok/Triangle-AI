@@ -279,6 +279,56 @@ html, body {
   color: var(--text-secondary); white-space: pre-wrap;
 }
 
+/* ===== Live Activity ===== */
+.live-feed-body { padding: 0; max-height: 220px; overflow-y: auto; }
+.panel-subtitle {
+  font-size: 10px; color: var(--text-muted);
+  font-weight: 400; letter-spacing: 0.3px;
+}
+
+/* ===== Scan History ===== */
+.history-panel { margin-bottom: 8px; }
+.history-body {
+  padding: 0;
+  max-height: 400px;
+  overflow-y: auto;
+}
+.history-body::-webkit-scrollbar { width: 6px; }
+.history-body::-webkit-scrollbar-track { background: var(--bg-card); }
+.history-body::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+.history-controls {
+  display: flex; align-items: center; gap: 6px;
+}
+.history-count {
+  font-size: 11px; color: var(--text-muted);
+  font-family: var(--mono-font);
+  padding-right: 6px;
+  border-right: 1px solid var(--border);
+  margin-right: 2px;
+}
+.history-btn {
+  background: transparent; border: 1px solid var(--border);
+  color: var(--text-muted); padding: 3px 10px; border-radius: 2px;
+  font-size: 11px; cursor: pointer; transition: all 0.15s;
+  font-family: var(--grafana-font);
+}
+.history-btn:hover { border-color: var(--accent-blue); color: var(--text-primary); }
+.history-btn.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+.history-table td { font-size: 11px; }
+
+/* ===== New Badge ===== */
+.new-badge {
+  font-size: 10px; font-weight: 700;
+  background: var(--accent-red); color: #fff;
+  padding: 2px 7px; border-radius: 10px;
+  animation: badgePulse 0.5s ease;
+}
+@keyframes badgePulse {
+  0% { transform: scale(0.5); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 1000px) {
   .stats-bar { grid-template-columns: repeat(3, 1fr); }
