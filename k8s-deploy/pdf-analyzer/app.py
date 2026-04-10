@@ -9,6 +9,7 @@ import json
 import hashlib
 import traceback
 import magic
+import requests
 from datetime import datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -244,6 +245,39 @@ def analyze_generic(bytes_data, filename, mime):
         'stats': {}
     }
 
+def generate_ai_insight(analysis_data):
+    """Call local Ollama API to generate a sophisticated security report."""
+    ollama_url = os.environ.get('OLLAMA_URL', 'http://host.docker.internal:11434')
+    model = os.environ.get('OLLAMA_MODEL', 'Llama3.1:8b')
+    
+    prompt = f"""
+    You are an expert Cyber Security Analyst. 
+    Analyze the following static analysis result of a file and provide a sophisticated, professional summary.
+    
+    File Type: {analysis_data.get('type')}
+    Risk Score: {analysis_data.get('risk_score')}/100
+    Verdict: {analysis_data.get('verdict')}
+    Findings: {", ".join(analysis_data.get('details', []))}
+    
+    Please provide your expert opinion in the following format:
+    - **Threat Assessment**: (Brief summary)
+    - **Technical Impact**: (What could happen)
+    - **Recommended Mitigation**: (Action items)
+    
+    Language: Professional English. Keep it under 200 words.
+    """
+    
+    try:
+        # Check if Ollama is reachable
+        response = requests.post(f"{ollama_url}/api/generate", 
+                                 json={"model": model, "prompt": prompt, "stream": False},
+                                 timeout=20)
+        if response.status_code == 200:
+            return response.json().get('response', "AI Insight: No response from model.")
+        return f"AI Insight: Ollama returned status {response.status_code}"
+    except Exception as e:
+        return f"AI Insight: Local LLM service unreachable (Ollama at {ollama_url}). Make sure Ollama is running on the host."
+
 # --------------------------------------------------------------------------
 # Flask Routes
 # --------------------------------------------------------------------------
@@ -268,6 +302,9 @@ def analyze():
         # Dispatch to appropriate analyzer
         analysis = analyze_file(bytes_data, file.filename)
         
+        # 3. Generate AI Insight via Local Ollama (Optional)
+        analysis['ai_insight'] = generate_ai_insight(analysis)
+        
         # Meta report wrap
         result = {
             'file_info': {
@@ -284,7 +321,8 @@ def analyze():
             'stats': analysis['stats'],
             'report': [
                 {'title': 'Analysis Summary', 'content': f"Detected file as {analysis['type']}. Check the details for findings."},
-                {'title': 'Detection Results', 'content': "\n".join(f"• {d}" for d in analysis['details']) if analysis['details'] else "No suspicious elements found."}
+                {'title': 'Detection Results', 'content': "\n".join(f"• {d}" for d in analysis['details']) if analysis['details'] else "No suspicious elements found."},
+                {'title': 'Triangle AI Insights', 'content': analysis.get('ai_insight', 'No AI insight generated.')}
             ]
         }
 
