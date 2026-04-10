@@ -73,7 +73,7 @@ echo "=========================================="
 echo "  Access Dashboard"
 echo "=========================================="
 MINIKUBE_IP=$(minikube ip 2>/dev/null || echo "unknown")
-echo "  → Dashboard URL: http://$MINIKUBE_IP:30080"
+echo "  → Dashboard URL: http://$MINIKUBE_IP:30090"
 echo ""
 echo "  Or run:"
 echo "  minikube service dashboard-service -n $NAMESPACE"
