@@ -214,3 +214,33 @@ graph TB
 cd k8s-deploy
 bash deploy.sh
 ```
+
+---
+
+## 🤖 AI 기반 고도화 분석 (Ollama 연동)
+
+Triangle AI v0.1은 **Ollama를 통한 로컬 LLM** 연동을 지원하여, 정적 분석 결과를 바탕으로 사람이 읽기 쉬운 전문적인 기술 리포트와 대응 방안을 생성합니다.
+
+### 📋 사전 요구사항
+1.  호스트 머신에 **Ollama**가 설치되어 있어야 합니다 ([ollama.com](https://ollama.com)).
+2.  분석에 사용할 모델을 다운로드(pull)합니다:
+    - `llama3.1:8b` (일반적인 보안 분석 추천)
+    - `mistral:7b`
+    - `qwen2.5-coder:7b` (스크립트 및 코드 분석 특화)
+
+### ⚙️ 설정 방법
+분석 엔진 컨테이너는 `host.docker.internal` 주소를 통해 호스트의 Ollama와 통신합니다 (Docker Desktop 기본값).
+
+모델이나 URL을 변경하려면 `k8s/pdf-analyzer.yaml`의 환경 변수를 수정하세요:
+```yaml
+env:
+  - name: OLLAMA_URL
+    value: "http://host.docker.internal:11434"
+  - name: OLLAMA_MODEL
+    value: "llama3.1:8b"
+```
+
+### 🧠 분석 리포트 포함 내용
+- **위협 평가 (Threat Assessment)**: 파일의 잠재적 의도에 대한 고수준 요약.
+- **기술적 영향 (Technical Impact)**: 탐지된 지표(매크로, JS API 등)가 시스템에 미칠 수 있는 영향 분석.
+- **대응 권고 (Actionable Mitigation)**: 발견된 위협에 대한 전문가 수준의 조치 가이드.

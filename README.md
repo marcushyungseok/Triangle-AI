@@ -154,6 +154,36 @@ bash deploy.sh
 
 ---
 
+## 🤖 AI-Powered Analysis (Ollama Integration)
+
+Triangle AI v0.1 supports enhanced threat reporting using **Local LLMs via Ollama**. This feature provides human-readable technical insights and mitigation strategies based on static analysis findings.
+
+### 📋 Prerequisites
+1.  **Ollama** installed on your host machine ([ollama.com](https://ollama.com)).
+2.  One or more of the following models pulled:
+    - `llama3.1:8b` (Recommended for general security analysis)
+    - `mistral:7b`
+    - `qwen2.5-coder:7b` (Recommended for script/code analysis)
+
+### ⚙️ Configuration
+The analyzer pod communicates with Ollama via the `host.docker.internal` address (default for Docker Desktop).
+
+To change the model or URL, update the environment variables in `k8s/pdf-analyzer.yaml`:
+```yaml
+env:
+  - name: OLLAMA_URL
+    value: "http://host.docker.internal:11434"
+  - name: OLLAMA_MODEL
+    value: "llama3.1:8b"
+```
+
+### 🧠 Features
+- **Threat Assessment**: High-level summary of the file's potential intent.
+- **Technical Impact**: Analysis of what the detected indicators (macros, JS APIs) can do to a system.
+- **Actionable Mitigation**: Professional advice on how to handle the specific threat.
+
+---
+
 ## 🛠️ Tech Stack
 - **Language**: Python 3.11
 - **ML**: TensorFlow (FNN)
