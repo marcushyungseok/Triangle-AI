@@ -141,7 +141,6 @@ function updateNodeMap(nodes) {
   container.innerHTML = html;
 }
 
-// ===== Feed =====
 function updateFeed(events) {
   const tbody = document.getElementById('feedBody');
   let filtered = events;
@@ -149,7 +148,7 @@ function updateFeed(events) {
     filtered = events.filter(e => e.verdict === currentFilter);
   }
   if (!filtered.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No events matching filter.</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="9">No events matching filter.</td></tr>';
     return;
   }
   tbody.innerHTML = filtered.map((e, i) => {
@@ -157,13 +156,18 @@ function updateFeed(events) {
     const cls = e.verdict === 'HIGH RISK' ? 'HIGH' : e.verdict === 'MEDIUM RISK' ? 'MEDIUM' : e.verdict === 'CLEAN' ? 'CLEAN' : 'UNKNOWN';
     const scoreCls = e.risk_score >= 60 ? 'score-high' : e.risk_score >= 25 ? 'score-medium' : 'score-low';
     const detail = e.details && e.details.length > 0 ? e.details[0] : '—';
+    const ns = e.namespace || 'unknown';
+    const pod = e.pod_name || 'unknown';
+    const filePath = e.file_path || e.filename || '—';
     return `<tr class="${i === 0 ? 'new-event' : ''}">
       <td>${time}</td>
-      <td>${e.node_name}</td>
-      <td title="${e.file_path}">${e.filename}</td>
-      <td>${e.type}</td>
-      <td class="${scoreCls}">${e.risk_score}</td>
       <td><span class="verdict-badge verdict-${cls}">${e.verdict}</span></td>
+      <td class="${scoreCls}">${e.risk_score}</td>
+      <td><span class="ns-badge">${ns}</span></td>
+      <td><span class="pod-badge">${pod}</span></td>
+      <td>${e.node_name}</td>
+      <td title="${filePath}"><span class="path-text">${filePath}</span></td>
+      <td>${e.type}</td>
       <td title="${e.details?.join(', ')}">${detail}</td>
     </tr>`;
   }).join('');

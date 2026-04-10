@@ -6,7 +6,7 @@
   <title>Triangle AI — Security Hub</title>
   <meta name="description" content="Cloud Native AI Security Operations Center for Kubernetes threat monitoring">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -76,7 +76,7 @@
       </div>
     </div>
 
-    <!-- Middle Row: Node Map + Trend Chart + Verdict Chart -->
+    <!-- Row 1: Cluster Nodes + Risk Score Timeline -->
     <div class="panel-row mid-row">
       <div class="panel node-panel">
         <div class="panel-header">
@@ -90,19 +90,19 @@
         <div class="panel-header">
           <span class="panel-title">📈 Risk Score Timeline</span>
         </div>
-        <div class="panel-body" style="padding:12px 14px;height:260px;">
+        <div class="panel-body chart-body">
           <canvas id="trendChart"></canvas>
         </div>
       </div>
     </div>
 
-    <!-- Second Row: Verdict Donut + Feed -->
-    <div class="panel-row" style="grid-template-columns: 280px 1fr; gap:8px; margin-bottom:8px;">
-      <div class="panel">
+    <!-- Row 2: Verdict Distribution + Live Threat Feed -->
+    <div class="panel-row bottom-row">
+      <div class="panel verdict-panel">
         <div class="panel-header">
           <span class="panel-title">🎯 Verdict Distribution</span>
         </div>
-        <div class="panel-body" style="padding:16px;height:300px;">
+        <div class="panel-body verdict-body">
           <canvas id="verdictChart"></canvas>
         </div>
       </div>
@@ -121,29 +121,30 @@
             <thead>
               <tr>
                 <th>Time</th>
-                <th>Node</th>
-                <th>File</th>
-                <th>Type</th>
-                <th>Score</th>
                 <th>Verdict</th>
+                <th>Score</th>
+                <th>Namespace</th>
+                <th>Pod</th>
+                <th>Node</th>
+                <th>File Path</th>
+                <th>Type</th>
                 <th>Details</th>
               </tr>
             </thead>
             <tbody id="feedBody">
-              <tr class="empty-row"><td colspan="7">No events yet. Waiting for scanner reports...</td></tr>
+              <tr class="empty-row"><td colspan="9">No events yet. Waiting for scanner reports...</td></tr>
             </tbody>
           </table>
         </div>
       </div>
     </div>
 
-
     <!-- AI Forensics Panel -->
     <div class="panel ai-panel" id="aiPanel" style="display:none;">
       <div class="panel-header">
         <span class="panel-title">🧠 Triangle AI Forensics</span>
       </div>
-      <div class="panel-body" id="aiContent"></div>
+      <div class="panel-body ai-body" id="aiContent"></div>
     </div>
   </main>
 
