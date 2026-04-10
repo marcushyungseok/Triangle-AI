@@ -16,9 +16,8 @@ spec:
         app: dashboard
     spec:
       containers:
-        - name: dashboard
           image: npe-dashboard:latest
-          imagePullPolicy: Never
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
           env:
