@@ -194,7 +194,11 @@ sequenceDiagram
 
 Triangle AI의 분석 엔진을 Kubernetes에 배포하고 결과 시각화 대시보드를 제공합니다.
 
-![Triangle AI Dashboard](assets/triangle-ai-dashboard.png)
+#### 메인 대시보드 (파일 업로드)
+![Triangle AI Initial Screen](assets/triangle-ai-initial.png)
+
+#### 상세 분석 결과 리포트
+![Triangle AI Analysis Result](assets/triangle-ai-analysis.png)
 
 ### 배포 아키텍처
 

@@ -131,7 +131,11 @@ The system operates a Flask-RESTful server on port **8000**.
 
 Triangle AI provides a scalable analysis engine and a visualization dashboard on Kubernetes.
 
-![Triangle AI Dashboard](assets/triangle-ai-dashboard.png)
+#### Main Dashboard (File Upload)
+![Triangle AI Initial Screen](assets/triangle-ai-initial.png)
+
+#### Detailed Analysis Results
+![Triangle AI Analysis Result](assets/triangle-ai-analysis.png)
 
 ### Architecture
 
