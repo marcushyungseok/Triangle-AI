@@ -17,13 +17,13 @@ spec:
     spec:
       containers:
         - name: pdf-analyzer
-          image: npe-pdf-analyzer:v7
+          image: npe-pdf-analyzer:v9
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000
           env:
             - name: OLLAMA_URL
-              value: "http://host.docker.internal:11434"
+              value: "http://host.minikube.internal:11434"
           resources:
             requests:
               memory: "128Mi"

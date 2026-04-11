@@ -194,6 +194,8 @@ sequenceDiagram
 
 Triangle AI의 분석 엔진을 Kubernetes에 배포하고 결과 시각화 대시보드를 제공합니다.
 
+![Triangle AI Dashboard](assets/triangle-ai-dashboard.png)
+
 ### 배포 아키텍처
 
 ```mermaid
@@ -229,13 +231,13 @@ Triangle AI v0.1은 **Ollama를 통한 로컬 LLM** 연동을 지원하여, 정�
     - `qwen2.5-coder:7b` (스크립트 및 코드 분석 특화)
 
 ### ⚙️ 설정 방법
-분석 엔진 컨테이너는 `host.docker.internal` 주소를 통해 호스트의 Ollama와 통신합니다 (Docker Desktop 기본값).
+분석 엔진 컨테이너는 `host.minikube.internal` 주소를 통해 호스트의 Ollama와 통신합니다 (Minikube 기본값).
 
 모델이나 URL을 변경하려면 `k8s/pdf-analyzer.yaml`의 환경 변수를 수정하세요:
 ```yaml
 env:
   - name: OLLAMA_URL
-    value: "http://host.docker.internal:11434"
+    value: "http://host.minikube.internal:11434"
   - name: OLLAMA_MODEL
     value: "llama3.1:8b"
 ```
@@ -244,3 +246,31 @@ env:
 - **위협 평가 (Threat Assessment)**: 파일의 잠재적 의도에 대한 고수준 요약.
 - **기술적 영향 (Technical Impact)**: 탐지된 지표(매크로, JS API 등)가 시스템에 미칠 수 있는 영향 분석.
 - **대응 권고 (Actionable Mitigation)**: 발견된 위협에 대한 전문가 수준의 조치 가이드.
+
+---
+
+## 🚀 Cloud Native Security Hub (실시간 보안 관제)
+
+Triangle AI는 이제 Kubernetes 클러스터의 실시간 보안 모니터링을 위한 **Cloud Native Security Hub**를 포함합니다. DaemonSet 기반의 스캐너가 실시간으로 노드 파일 시스템의 변화를 감지하고, Kubernetes API를 통해 해당 이벤트가 어떤 **네임스페이스**와 **파드**에서 발생했는지 추적합니다.
+
+![Security Hub Dashboard](assets/security-hub-dashboard.png)
+
+### 주요 기능
+- **실시간 노드 보호**: DaemonSet 스캐너가 클러스터 내로 유입되는 모든 파일(볼륨 마운트, hostPath 등)을 실시간 감시합니다.
+- **K8s Context Aware**: 파일 이벤트 발생 시 관련 **네임스페이스**와 **파드** 이름을 자동으로 식별합니다.
+- **SOC Intelligence**: Grafana 스타일의 고성능 대시보드, 실시간 위협 피드, 위험 점수 시계열 차트 및 분포도를 제공합니다.
+- **지속적 포렌식**: 브라우저 기반의 로컬 저장소를 활용하여, 페이지 새로고침 시에도 소실되지 않는 분석 이력(검색/정렬 가능)을 제공합니다.
+- **AI 분석 자동화**: Ollama를 활용하여 탐지된 위협에 대한 AI 요약 및 대응 전략을 실시간으로 생성합니다.
+
+### 설치 및 사용법
+1. **모든 구성 요소 배포**:
+   ```bash
+   kubectl apply -f k8s-deploy/k8s/
+   ```
+2. **Security Hub 접속**:
+   ```bash
+   kubectl port-forward service/security-hub-service -n npe-learner 30091:3001
+   ```
+   브라우저에서 `http://localhost:30091` 주소로 접속합니다.
+
+---

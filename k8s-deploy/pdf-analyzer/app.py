@@ -83,8 +83,8 @@ def analyze_pdf(bytes_data, filename):
         reasons.append(f"Detected {len(pdf.errors)} structural errors")
 
     verdict = "CLEAN"
-    if score >= 70: verdict = "HIGH RISK"
-    elif score >= 30: verdict = "MEDIUM RISK"
+    if score >= 80: verdict = "HIGH RISK"
+    elif score >= 40: verdict = "MEDIUM RISK"
 
     return {
         'type': 'PDF Document',
@@ -171,30 +171,40 @@ def analyze_script(bytes_data, filename, mode):
     score = 0
     reasons = []
 
-    # Suspicious Keywords
+    # Suspicious Keywords — require multiple indicators for meaningful score
     keywords = {
-        'eval(': 25,
-        'unescape(': 15,
-        'document.write(': 15,
-        'string.fromcharcode': 20,
-        'xmlhttprequest': 10,
-        'powershell': 40,
-        'cmd.exe': 40,
-        'base64': 10,
-        'activexobject': 30
+    'eval(': 10,
+    'unescape(': 5,
+    'document.write(': 10,
+    'string.fromcharcode': 10,
+    'xmlhttprequest': 3,
+    'powershell': 35,
+    'cmd.exe': 35,
+    'base64': 2,
+    'activexobject': 25,
+    'wscript.shell': 35,
+    'fromcharcode': 5,
     }
 
+    found_count = 0
     for kw, val in keywords.items():
         if kw in content:
             score += val
             reasons.append(f"Found suspicious keyword: {kw}")
+            found_count += 1
 
-    if len(content) > 10000 and score > 20:
-        score += 10 # Obfuscation hint
+    # Bonus: multiple suspicious keywords compound the risk
+    if found_count >= 3:
+        score += 15
+        reasons.append(f"Multiple suspicious patterns detected ({found_count} keywords)")
+
+    # Obfuscation hint: large file with suspicious keywords
+    if len(content) > 10000 and found_count >= 2:
+        score += 10
 
     verdict = "CLEAN"
-    if score >= 60: verdict = "HIGH RISK"
-    elif score >= 25: verdict = "MEDIUM RISK"
+    if score >= 85: verdict = "HIGH RISK"
+    elif score >= 50: verdict = "MEDIUM RISK"
 
     return {
         'type': 'HTML/Script File' if mode == 'html' else 'Source Script',
@@ -247,7 +257,7 @@ def analyze_generic(bytes_data, filename, mime):
 
 def generate_ai_insight(analysis_data):
     """Call local Ollama API to generate a sophisticated security report."""
-    ollama_url = os.environ.get('OLLAMA_URL', 'http://host.docker.internal:11434')
+    ollama_url = os.environ.get('OLLAMA_URL', 'http://host.minikube.internal:11434')
     model = os.environ.get('OLLAMA_MODEL', 'Llama3.1:8b')
     
     prompt = f"""

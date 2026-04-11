@@ -131,6 +131,8 @@ The system operates a Flask-RESTful server on port **8000**.
 
 Triangle AI provides a scalable analysis engine and a visualization dashboard on Kubernetes.
 
+![Triangle AI Dashboard](assets/triangle-ai-dashboard.png)
+
 ### Architecture
 
 ```mermaid
@@ -166,13 +168,13 @@ Triangle AI v0.1 supports enhanced threat reporting using **Local LLMs via Ollam
     - `qwen2.5-coder:7b` (Recommended for script/code analysis)
 
 ### ⚙️ Configuration
-The analyzer pod communicates with Ollama via the `host.docker.internal` address (default for Docker Desktop).
+The analyzer pod communicates with Ollama via the `host.minikube.internal` address (default for Minikube).
 
 To change the model or URL, update the environment variables in `k8s/pdf-analyzer.yaml`:
 ```yaml
 env:
   - name: OLLAMA_URL
-    value: "http://host.docker.internal:11434"
+    value: "http://host.minikube.internal:11434"
   - name: OLLAMA_MODEL
     value: "llama3.1:8b"
 ```
@@ -181,6 +183,32 @@ env:
 - **Threat Assessment**: High-level summary of the file's potential intent.
 - **Technical Impact**: Analysis of what the detected indicators (macros, JS APIs) can do to a system.
 - **Actionable Mitigation**: Professional advice on how to handle the specific threat.
+
+---
+
+## 🚀 Cloud Native Security Hub
+
+Triangle AI now includes a complete **Cloud Native Security Hub** designed for real-time monitoring of Kubernetes clusters. It uses a DaemonSet-based scanner to watch all host filesystem changes and resolves security events to specific K8s Namespaces and Pods using the Kubernetes API.
+
+![Security Hub Dashboard](assets/security-hub-dashboard.png)
+
+### Key Features
+- **Real-time Node Protection**: DaemonSet scanner watches all files entering the cluster (e.g., via volume mounts or hostPath).
+- **K8s Context Aware**: Automatically resolves file events to the responsible **Namespace** and **Pod**.
+- **SOC Intelligence**: Grafana-inspired dashboard with live threat feeds, risk score timelines, and verdict distribution.
+- **Persistent Forensics**: Browser-side persistent history with search and sortable analysis results.
+- **AI Insights**: Automated security summaries for each detected threat via Ollama.
+
+### Setup & Usage
+1. **Deploy all components**:
+   ```bash
+   kubectl apply -f k8s-deploy/k8s/
+   ```
+2. **Access the Security Hub**:
+   ```bash
+   kubectl port-forward service/security-hub-service -n npe-learner 30091:3001
+   ```
+   Open `http://localhost:30091` in your browser.
 
 ---
 

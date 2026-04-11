@@ -144,6 +144,7 @@
           <button class="history-btn" data-filter="HIGH RISK">High</button>
           <button class="history-btn" data-filter="MEDIUM RISK">Medium</button>
           <button class="history-btn" data-filter="CLEAN">Clean</button>
+          <button class="history-btn clear-btn" id="clearHistory" style="margin-left: auto; border-color: rgba(255,255,255,0.1); color: #888;">Clear All</button>
         </div>
       </div>
       <div class="panel-body history-body">
@@ -151,8 +152,8 @@
           <thead>
             <tr>
               <th>Timestamp</th>
-              <th>Verdict</th>
-              <th>Score</th>
+              <th id="sortVerdict" class="sortable-th">Verdict</th>
+              <th id="sortScore" class="sortable-th">Score</th>
               <th>Namespace</th>
               <th>Pod</th>
               <th>Node</th>

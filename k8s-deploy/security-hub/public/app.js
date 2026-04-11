@@ -48,6 +48,13 @@ document.addEventListener('DOMContentLoaded', () => {
   connectWebSocket();
   setupFilterButtons();
   setupHistoryFilter();
+  setupHistorySort();
+  document.getElementById('clearHistory')?.addEventListener('click', () => {
+    if (confirm('Clear all scan history? This will reset the dashboard data.')) {
+      localStorage.removeItem(STORAGE_KEY);
+      location.reload();
+    }
+  });
   initTrendChart();
   initVerdictChart();
   // Render existing history immediately
@@ -115,8 +122,6 @@ function handleUpdate(incomingEvents, stats) {
 
   // 3. Update persistent scan history table
   renderHistory(history);
-
-  // 4. Stats & Charts from persistent history
   const hStats = computeHistoryStats(history);
   updateStats(hStats);
   updateNodeMap(hStats.nodes);
@@ -133,18 +138,26 @@ function handleUpdate(incomingEvents, stats) {
   }
 }
 
+// ===== Persistent Stats Computation =====
 function computeHistoryStats(history) {
-  const total = history.length;
-  const threats = history.filter(e => e.verdict === 'HIGH RISK' || e.verdict === 'MEDIUM RISK').length;
-  const high = history.filter(e => e.verdict === 'HIGH RISK').length;
-  const clean = history.filter(e => e.verdict === 'CLEAN').length;
   const nodes = {};
+  let total = history.length;
+  let threats = 0;
+  let high = 0;
+  let clean = 0;
   for (const e of history) {
     const n = e.node_name || 'unknown';
     if (!nodes[n]) nodes[n] = { total: 0, threats: 0, high_risk: 0 };
     nodes[n].total++;
-    if (e.verdict === 'HIGH RISK' || e.verdict === 'MEDIUM RISK') nodes[n].threats++;
-    if (e.verdict === 'HIGH RISK') nodes[n].high_risk++;
+    if (e.verdict === 'HIGH RISK' || e.verdict === 'MEDIUM RISK') {
+      nodes[n].threats++;
+      threats++;
+    }
+    if (e.verdict === 'HIGH RISK') {
+      nodes[n].high_risk++;
+      high++;
+    }
+    if (e.verdict === 'CLEAN') clean++;
   }
   return { total_scans: total, threats_detected: threats, high_risk: high, clean_files: clean, active_nodes: Object.keys(nodes).length, nodes };
 }
@@ -206,7 +219,7 @@ function updateLiveFeed(events) {
   tbody.innerHTML = latest.map((e, i) => {
     const time = new Date(e.timestamp).toLocaleTimeString();
     const cls = verdictClass(e.verdict);
-    const scoreCls = e.risk_score >= 60 ? 'score-high' : e.risk_score >= 25 ? 'score-medium' : 'score-low';
+    const scoreCls = e.risk_score >= 80 ? 'score-high' : e.risk_score >= 50 ? 'score-medium' : 'score-low';
     return `<tr class="${i === 0 ? 'new-event' : ''}">
       <td>${time}</td>
       <td><span class="verdict-badge verdict-${cls}">${e.verdict}</span></td>
@@ -220,14 +233,36 @@ function updateLiveFeed(events) {
   }).join('');
 }
 
-// ===== Scan History (persistent, all results) =====
+// ===== Scan History (persistent, all results, sortable) =====
 let historyFilter = 'all';
+let historySortField = null;  // null | 'verdict' | 'score'
+let historySortDir = 0;       // 0=default, 1=desc(high first), 2=asc(low first)
+
+const VERDICT_ORDER = { 'HIGH RISK': 0, 'MEDIUM RISK': 1, 'CLEAN': 2, 'UNKNOWN': 3 };
+
 function renderHistory(history) {
   const tbody = document.getElementById('historyBody');
   const countEl = document.getElementById('historyCount');
   let filtered = history;
   if (historyFilter !== 'all') filtered = history.filter(e => e.verdict === historyFilter);
+
+  // Apply sort
+  if (historySortField === 'verdict' && historySortDir > 0) {
+    filtered = [...filtered].sort((a, b) => {
+      const diff = (VERDICT_ORDER[a.verdict] || 9) - (VERDICT_ORDER[b.verdict] || 9);
+      return historySortDir === 1 ? diff : -diff;
+    });
+  } else if (historySortField === 'score' && historySortDir > 0) {
+    filtered = [...filtered].sort((a, b) =>
+      historySortDir === 1 ? b.risk_score - a.risk_score : a.risk_score - b.risk_score
+    );
+  }
+
   if (countEl) countEl.textContent = `${filtered.length} / ${history.length}`;
+
+  // Update sort indicators
+  updateSortIndicators();
+
   if (!filtered.length) {
     tbody.innerHTML = '<tr class="empty-row"><td colspan="9">No scan results recorded yet.</td></tr>';
     return;
@@ -235,7 +270,7 @@ function renderHistory(history) {
   tbody.innerHTML = filtered.map(e => {
     const time = new Date(e.timestamp).toLocaleString();
     const cls = verdictClass(e.verdict);
-    const scoreCls = e.risk_score >= 60 ? 'score-high' : e.risk_score >= 25 ? 'score-medium' : 'score-low';
+    const scoreCls = e.risk_score >= 80 ? 'score-high' : e.risk_score >= 50 ? 'score-medium' : 'score-low';
     const detail = e.details && e.details.length > 0 ? e.details.join(', ') : '—';
     return `<tr>
       <td>${time}</td>
@@ -250,7 +285,48 @@ function renderHistory(history) {
     </tr>`;
   }).join('');
 }
-function renderHistoryStats(history) { /* initial render */ }
+
+function updateSortIndicators() {
+  const verdictTh = document.getElementById('sortVerdict');
+  const scoreTh = document.getElementById('sortScore');
+  if (verdictTh) {
+    const arrow = historySortField === 'verdict' ? (historySortDir === 1 ? ' ▼' : historySortDir === 2 ? ' ▲' : '') : '';
+    verdictTh.textContent = 'Verdict' + arrow;
+  }
+  if (scoreTh) {
+    const arrow = historySortField === 'score' ? (historySortDir === 1 ? ' ▼' : historySortDir === 2 ? ' ▲' : '') : '';
+    scoreTh.textContent = 'Score' + arrow;
+  }
+}
+
+function setupHistorySort() {
+  const verdictTh = document.getElementById('sortVerdict');
+  const scoreTh = document.getElementById('sortScore');
+  if (verdictTh) {
+    verdictTh.addEventListener('click', () => {
+      if (historySortField !== 'verdict') { historySortField = 'verdict'; historySortDir = 1; }
+      else { historySortDir = (historySortDir + 1) % 3; }
+      if (historySortDir === 0) historySortField = null;
+      renderHistory(loadHistory());
+    });
+  }
+  if (scoreTh) {
+    scoreTh.addEventListener('click', () => {
+      if (historySortField !== 'score') { historySortField = 'score'; historySortDir = 1; }
+      else { historySortDir = (historySortDir + 1) % 3; }
+      if (historySortDir === 0) historySortField = null;
+      renderHistory(loadHistory());
+    });
+  }
+}
+
+function renderHistoryStats(history) {
+  const hStats = computeHistoryStats(history);
+  updateStats(hStats);
+  updateNodeMap(hStats.nodes);
+  updateTrendChart(history);
+  updateVerdictChart(hStats);
+}
 function setupHistoryFilter() {
   document.querySelectorAll('.history-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -311,7 +387,7 @@ function updateTrendChart(history) {
   trendChart.data.labels = recent.map(e => new Date(e.timestamp).toLocaleTimeString());
   trendChart.data.datasets[0].data = recent.map(e => e.risk_score);
   trendChart.data.datasets[0].pointBackgroundColor = recent.map(e =>
-    e.risk_score >= 60 ? '#f2495c' : e.risk_score >= 25 ? '#ff9830' : '#73bf69'
+    e.risk_score >= 80 ? '#f2495c' : e.risk_score >= 50 ? '#ff9830' : '#73bf69'
   );
   trendChart.update('none');
 }
