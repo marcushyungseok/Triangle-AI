@@ -258,7 +258,7 @@ def analyze_generic(bytes_data, filename, mime):
 def generate_ai_insight(analysis_data):
     """Call local Ollama API to generate a sophisticated security report."""
     ollama_url = os.environ.get('OLLAMA_URL', 'http://host.minikube.internal:11434')
-    model = os.environ.get('OLLAMA_MODEL', 'Llama3.1:8b')
+    model = os.environ.get('OLLAMA_MODEL', 'gemma4:e2b')
     
     prompt = f"""
     You are an expert Cyber Security Analyst. 

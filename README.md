@@ -167,9 +167,9 @@ Triangle AI v0.1 supports enhanced threat reporting using **Local LLMs via Ollam
 ### 📋 Prerequisites
 1.  **Ollama** installed on your host machine ([ollama.com](https://ollama.com)).
 2.  One or more of the following models pulled:
-    - `llama3.1:8b` (Recommended for general security analysis)
+    - `gemma4:e2b` (Recommended for high-performance security analysis)
     - `mistral:7b`
-    - `qwen2.5-coder:7b` (Recommended for script/code analysis)
+    - `qwen2.5:7b` (Recommended for script/code analysis)
 
 ### ⚙️ Configuration
 The analyzer pod communicates with Ollama via the `host.minikube.internal` address (default for Minikube).
@@ -180,7 +180,7 @@ env:
   - name: OLLAMA_URL
     value: "http://host.minikube.internal:11434"
   - name: OLLAMA_MODEL
-    value: "llama3.1:8b"
+    value: "gemma4:e2b"
 ```
 
 ### 🧠 Features

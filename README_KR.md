@@ -230,9 +230,9 @@ Triangle AI v0.1은 **Ollama를 통한 로컬 LLM** 연동을 지원하여, 정�
 ### 📋 사전 요구사항
 1.  호스트 머신에 **Ollama**가 설치되어 있어야 합니다 ([ollama.com](https://ollama.com)).
 2.  분석에 사용할 모델을 다운로드(pull)합니다:
-    - `llama3.1:8b` (일반적인 보안 분석 추천)
+    - `gemma4:e2b` (고성능 보안 분석 추천)
     - `mistral:7b`
-    - `qwen2.5-coder:7b` (스크립트 및 코드 분석 특화)
+    - `qwen2.5:7b` (스크립트 및 코드 분석 특화)
 
 ### ⚙️ 설정 방법
 분석 엔진 컨테이너는 `host.minikube.internal` 주소를 통해 호스트의 Ollama와 통신합니다 (Minikube 기본값).
@@ -243,7 +243,7 @@ env:
   - name: OLLAMA_URL
     value: "http://host.minikube.internal:11434"
   - name: OLLAMA_MODEL
-    value: "llama3.1:8b"
+    value: "gemma4:e2b"
 ```
 
 ### 🧠 분석 리포트 포함 내용

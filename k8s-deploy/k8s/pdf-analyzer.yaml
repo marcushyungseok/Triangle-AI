@@ -24,6 +24,8 @@ spec:
           env:
             - name: OLLAMA_URL
               value: "http://host.minikube.internal:11434"
+            - name: OLLAMA_MODEL
+              value: "gemma4:e2b"
           resources:
             requests:
               memory: "128Mi"
