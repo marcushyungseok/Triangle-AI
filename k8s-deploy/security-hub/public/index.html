@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Triangle AI — Security Hub</title>
-  <meta name="description" content="Cloud Native AI Security Operations Center for Kubernetes threat monitoring">
+  <title>Triangle AI — Security Hub v0.9</title>
+  <meta name="description" content="Cloud Native AI Security Operations Center — eBPF, GPU Monitoring, Admission Control">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
@@ -22,7 +22,8 @@
       </div>
       <span class="nav-separator">|</span>
       <span class="nav-title">Security Hub</span>
-      <span class="nav-badge">CLOUD NATIVE</span>
+      <span class="nav-badge">v0.9</span>
+      <span class="nav-badge nav-badge-gpu" id="gpuBadge" style="display:none">GPU GUARD</span>
     </div>
     <div class="nav-right">
       <span id="newBadge" class="new-badge" style="display:none">+0</span>
@@ -38,8 +39,8 @@
   </nav>
 
   <main class="main-content">
-    <!-- Stats Bar -->
-    <div class="stats-bar">
+    <!-- Stats Bar (extended with eBPF + Admission + GPU) -->
+    <div class="stats-bar stats-bar-extended">
       <div class="stat-card stat-total">
         <div class="stat-icon">🔍</div>
         <div class="stat-info">
@@ -51,7 +52,7 @@
         <div class="stat-icon">⚠️</div>
         <div class="stat-info">
           <div class="stat-value" id="statThreats">0</div>
-          <div class="stat-label">Threats Detected</div>
+          <div class="stat-label">Threats</div>
         </div>
       </div>
       <div class="stat-card stat-high">
@@ -65,14 +66,35 @@
         <div class="stat-icon">✅</div>
         <div class="stat-info">
           <div class="stat-value" id="statClean">0</div>
-          <div class="stat-label">Clean Files</div>
+          <div class="stat-label">Clean</div>
         </div>
       </div>
       <div class="stat-card stat-nodes">
         <div class="stat-icon">🖥️</div>
         <div class="stat-info">
           <div class="stat-value" id="statNodes">0</div>
-          <div class="stat-label">Active Nodes</div>
+          <div class="stat-label">Nodes</div>
+        </div>
+      </div>
+      <div class="stat-card stat-ebpf">
+        <div class="stat-icon">⚡</div>
+        <div class="stat-info">
+          <div class="stat-value" id="statEbpf">0</div>
+          <div class="stat-label">Kernel Events</div>
+        </div>
+      </div>
+      <div class="stat-card stat-admission">
+        <div class="stat-icon">🛡️</div>
+        <div class="stat-info">
+          <div class="stat-value" id="statAdmission">0</div>
+          <div class="stat-label">Blocked Pods</div>
+        </div>
+      </div>
+      <div class="stat-card stat-gpu">
+        <div class="stat-icon">🎮</div>
+        <div class="stat-info">
+          <div class="stat-value" id="statGpu">0</div>
+          <div class="stat-label">GPU Alerts</div>
         </div>
       </div>
     </div>
@@ -134,7 +156,102 @@
       </div>
     </div>
 
-    <!-- Row 3: Scan History (Persistent) -->
+    <!-- Row 3: eBPF Kernel Events + GPU Security -->
+    <div class="panel-row ebpf-gpu-row">
+      <div class="panel ebpf-panel">
+        <div class="panel-header">
+          <span class="panel-title">⚡ eBPF Kernel Security Events</span>
+          <div class="ebpf-controls">
+            <span class="ebpf-count" id="ebpfCount">0 events</span>
+            <button class="history-btn ebpf-filter-btn active" data-severity="all">All</button>
+            <button class="history-btn ebpf-filter-btn" data-severity="critical">Critical</button>
+            <button class="history-btn ebpf-filter-btn" data-severity="high">High</button>
+            <button class="history-btn ebpf-filter-btn" data-severity="medium">Medium</button>
+          </div>
+        </div>
+        <div class="panel-body ebpf-body">
+          <table class="feed-table ebpf-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Severity</th>
+                <th>Category</th>
+                <th>Process</th>
+                <th>PID</th>
+                <th>Syscall</th>
+                <th>Target</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody id="ebpfBody">
+              <tr class="empty-row"><td colspan="8">Waiting for eBPF kernel events...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel gpu-panel">
+        <div class="panel-header">
+          <span class="panel-title">🎮 GPU Security Monitor</span>
+          <span class="panel-subtitle" id="gpuStatus">Monitoring...</span>
+        </div>
+        <div class="panel-body gpu-body">
+          <div class="gpu-score-ring">
+            <canvas id="gpuScoreChart" width="180" height="180"></canvas>
+            <div class="gpu-score-label" id="gpuScoreLabel">
+              <span class="gpu-score-value">0</span>
+              <span class="gpu-score-text">GPU RISK</span>
+            </div>
+          </div>
+          <div class="gpu-metrics" id="gpuMetrics">
+            <div class="gpu-metric-item">
+              <span class="gpu-metric-label">Device Access</span>
+              <span class="gpu-metric-value" id="gpuDeviceAccess">0</span>
+            </div>
+            <div class="gpu-metric-item">
+              <span class="gpu-metric-label">Model File Access</span>
+              <span class="gpu-metric-value" id="gpuModelAccess">0</span>
+            </div>
+            <div class="gpu-metric-item">
+              <span class="gpu-metric-label">Memory Attach</span>
+              <span class="gpu-metric-value" id="gpuMemoryAttach">0</span>
+            </div>
+            <div class="gpu-metric-item">
+              <span class="gpu-metric-label">Unapproved GPU Pods</span>
+              <span class="gpu-metric-value" id="gpuUnapproved">0</span>
+            </div>
+          </div>
+          <div class="gpu-alerts" id="gpuAlerts">
+            <div class="empty-state gpu-empty">No GPU security alerts</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 4: Admission Controller Audit -->
+    <div class="panel admission-panel">
+      <div class="panel-header">
+        <span class="panel-title">🛡️ Admission Controller — Policy Violations</span>
+        <span class="admission-count" id="admissionCount">0 blocked</span>
+      </div>
+      <div class="panel-body admission-body">
+        <table class="feed-table admission-table">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Action</th>
+              <th>Namespace</th>
+              <th>Pod Name</th>
+              <th>Violations</th>
+            </tr>
+          </thead>
+          <tbody id="admissionBody">
+            <tr class="empty-row"><td colspan="5">No policy violations recorded.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Row 5: Scan History (Persistent) -->
     <div class="panel history-panel">
       <div class="panel-header">
         <span class="panel-title">📋 Scan History</span>
