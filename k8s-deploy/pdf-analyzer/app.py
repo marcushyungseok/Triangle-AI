@@ -453,5 +453,76 @@ def get_stats():
         })
 
 
+# --------------------------------------------------------------------------
+# eBPF Event Ingestion (from eBPF Tracer DaemonSet)
+# --------------------------------------------------------------------------
+_ebpf_events = []
+_ebpf_lock = threading.Lock()
+MAX_EBPF_EVENTS = 1000
+
+
+@app.route('/api/ebpf-events', methods=['POST'])
+def ingest_ebpf_events():
+    """Receive batched eBPF security events from the kernel tracer."""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data'}), 400
+
+    events = data.get('events', [])
+    with _ebpf_lock:
+        for evt in events:
+            evt['source'] = 'ebpf-tracer'
+            evt['node'] = data.get('node', 'unknown')
+            _ebpf_events.insert(0, evt)
+        while len(_ebpf_events) > MAX_EBPF_EVENTS:
+            _ebpf_events.pop()
+
+    return jsonify({'status': 'ok', 'ingested': len(events)})
+
+
+@app.route('/api/ebpf-events', methods=['GET'])
+def get_ebpf_events():
+    """Return recent eBPF security events for the dashboard."""
+    limit = min(int(request.args.get('limit', 50)), MAX_EBPF_EVENTS)
+    severity = request.args.get('severity', None)
+    with _ebpf_lock:
+        filtered = _ebpf_events
+        if severity:
+            filtered = [e for e in _ebpf_events if e.get('severity') == severity]
+        return jsonify({'events': filtered[:limit], 'total': len(_ebpf_events)})
+
+
+# --------------------------------------------------------------------------
+# Admission Controller Audit (from Admission Webhook)
+# --------------------------------------------------------------------------
+_admission_events = []
+_admission_lock = threading.Lock()
+MAX_ADMISSION_EVENTS = 500
+
+
+@app.route('/api/admission-events', methods=['POST'])
+def ingest_admission_event():
+    """Receive admission denial audit events from the webhook."""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data'}), 400
+
+    data['id'] = len(_admission_events) + 1
+    with _admission_lock:
+        _admission_events.insert(0, data)
+        while len(_admission_events) > MAX_ADMISSION_EVENTS:
+            _admission_events.pop()
+
+    return jsonify({'status': 'recorded', 'id': data['id']})
+
+
+@app.route('/api/admission-events', methods=['GET'])
+def get_admission_events():
+    """Return recent admission denials for audit dashboard."""
+    limit = min(int(request.args.get('limit', 50)), MAX_ADMISSION_EVENTS)
+    with _admission_lock:
+        return jsonify({'events': _admission_events[:limit], 'total': len(_admission_events)})
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

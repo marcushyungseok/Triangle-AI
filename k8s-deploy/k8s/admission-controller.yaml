@@ -1,0 +1,113 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: triangle-admission-controller
+  namespace: npe-learner
+  labels:
+    app: triangle-admission-controller
+spec:
+  ports:
+  - port: 443
+    targetPort: 8443
+    protocol: TCP
+  selector:
+    app: triangle-admission-controller
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: triangle-admission-controller
+  namespace: npe-learner
+  labels:
+    app: triangle-admission-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: triangle-admission-controller
+  template:
+    metadata:
+      labels:
+        app: triangle-admission-controller
+    spec:
+      containers:
+      - name: webhook
+        image: triangle-admission-controller:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8443
+        env:
+        - name: ANALYZER_URL
+          value: "http://pdf-analyzer-service.npe-learner.svc.cluster.local:5000"
+        - name: BLOCK_PRIVILEGED
+          value: "true"
+        - name: BLOCK_ROOT_USER
+          value: "true"
+        - name: REQUIRE_LIMITS
+          value: "true"
+        - name: BLOCK_HOST_PATH
+          value: "true"
+        - name: BLOCK_HOST_NS
+          value: "true"
+        - name: REQUIRE_GPU_ANNOTATION
+          value: "true"
+        - name: TLS_CERT
+          value: "/certs/tls.crt"
+        - name: TLS_KEY
+          value: "/certs/tls.key"
+        volumeMounts:
+        - name: tls-certs
+          mountPath: /certs
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      volumes:
+      - name: tls-certs
+        secret:
+          secretName: triangle-admission-tls
+---
+# NOTE: Before applying, generate TLS certs and create the secret:
+#   openssl req -x509 -newkey rsa:2048 -keyout tls.key -out tls.crt \
+#     -days 365 -nodes -subj "/CN=triangle-admission-controller.npe-learner.svc"
+#   kubectl create secret tls triangle-admission-tls \
+#     --cert=tls.crt --key=tls.key -n npe-learner
+#
+# Then register the webhook with:
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: triangle-ai-security-policy
+webhooks:
+- name: security.triangle-ai.io
+  admissionReviewVersions: ["v1"]
+  sideEffects: None
+  failurePolicy: Ignore    # Fail-open: don't block cluster if webhook is down
+  clientConfig:
+    service:
+      name: triangle-admission-controller
+      namespace: npe-learner
+      path: /validate
+    caBundle: ""  # Replace with base64-encoded CA cert
+  rules:
+  - apiGroups: [""]
+    apiVersions: ["v1"]
+    operations: ["CREATE", "UPDATE"]
+    resources: ["pods"]
+  namespaceSelector:
+    matchExpressions:
+    - key: kubernetes.io/metadata.name
+      operator: NotIn
+      values: ["kube-system", "kube-public", "kube-node-lease", "npe-learner"]

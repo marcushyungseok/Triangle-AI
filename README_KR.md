@@ -278,3 +278,159 @@ Triangle AI는 이제 Kubernetes 클러스터의 실시간 보안 모니터링�
    브라우저에서 `http://localhost:30091` 주소로 접속합니다.
 
 ---
+
+## ⚡ eBPF 기반 커널 보안 추적
+
+Triangle AI v0.2는 **eBPF (extended Berkeley Packet Filter)** 기반의 고성능 커널 추적기를 도입하여, 애플리케이션 코드 수정이나 사이드카 프록시 없이 리눅스 커널 레벨에서 시스콜(syscall)을 실시간으로 모니터링합니다.
+
+### 동작 원리
+
+```mermaid
+graph LR
+    subgraph "리눅스 커널"
+        PROBE["eBPF 프로브<br/>(openat, execve, ptrace)"]
+    end
+    subgraph "사용자 공간"
+        TRACER["Triangle AI<br/>eBPF Tracer"]
+        ENGINE["분석 엔진"]
+    end
+    PROBE -->|Perf Buffer| TRACER
+    TRACER -->|배치 이벤트| ENGINE
+```
+
+### 추적 대상 시스콜
+| 시스콜 | 탐지 대상 |
+|--------|----------|
+| `openat` | 민감 파일 접근 (시크릿, shadow, GPU 디바이스) |
+| `execve` | 의심스러운 프로세스 실행 (쉘, curl, wget) |
+| `ptrace` | 프로세스 인젝션, GPU 메모리 탈취 시도 |
+
+### 배포 방법
+```bash
+kubectl apply -f k8s-deploy/k8s/ebpf-tracer-daemonset.yaml
+```
+
+> [!NOTE]
+> eBPF 추적기는 `privileged: true`와 커널 헤더가 필요합니다. DaemonSet으로 배포되어 클러스터의 모든 노드를 커버합니다.
+
+---
+
+## 🛡️ Admission Controller (보안 정책 웹훅)
+
+Triangle AI에는 보안 요구사항을 충족하지 않는 컨테이너의 **생성 자체를 차단**하는 **Kubernetes ValidatingWebhookConfiguration**이 포함되어 있습니다. 보안을 탐지(detection)에서 예방(prevention)으로 전환합니다.
+
+### 적용 보안 정책
+
+| 정책 | 설명 | 기본값 |
+|------|------|--------|
+| **Privileged 모드** | `privileged: true`를 요청하는 컨테이너 차단 | ✅ 활성 |
+| **Root 사용자** | UID 0으로 실행되는 컨테이너 차단 | ✅ 활성 |
+| **리소스 제한** | 모든 컨테이너에 CPU/메모리 Limits 요구 | ✅ 활성 |
+| **Host Path** | `hostPath` 볼륨 마운트 차단 | ✅ 활성 |
+| **Host Namespace** | `hostPID`, `hostNetwork` 접근 차단 | ✅ 활성 |
+| **이미지 레지스트리** | 허가된 레지스트리의 이미지만 허용 | ✅ 활성 |
+| **위험 Capability** | `SYS_ADMIN`, `NET_RAW`, `SYS_PTRACE`, `ALL` 차단 | ✅ 활성 |
+| **GPU 어노테이션** | GPU 사용 시 `triangle-ai/gpu-approved: true` 어노테이션 요구 | ✅ 활성 |
+
+### 배포 방법
+```bash
+# 1. TLS 인증서 생성
+openssl req -x509 -newkey rsa:2048 -keyout tls.key -out tls.crt \
+  -days 365 -nodes -subj "/CN=triangle-admission-controller.npe-learner.svc"
+
+# 2. K8s TLS 시크릿 생성
+kubectl create secret tls triangle-admission-tls \
+  --cert=tls.crt --key=tls.key -n npe-learner
+
+# 3. 웹훅 배포
+kubectl apply -f k8s-deploy/k8s/admission-controller.yaml
+```
+
+> [!IMPORTANT]
+> 차단된 파드 생성 시도는 Triangle AI 감사 로그에 자동 기록되며, `/api/admission-events` 엔드포인트에서 조회할 수 있습니다.
+
+---
+
+## 📡 OpenTelemetry 연동 (OTLP 내보내기)
+
+Triangle AI의 모든 보안 이벤트를 **OpenTelemetry Protocol (OTLP)** 포맷으로 내보내어 다양한 관측성(Observability) 플랫폼과 원활하게 연동할 수 있습니다.
+
+### 지원 백엔드
+- **Grafana** (Tempo로 트레이스, Mimir로 메트릭, Loki로 로그)
+- **Jaeger** (분산 트레이싱)
+- **Datadog**, **New Relic**, **Splunk** (OTLP 엔드포인트 경유)
+
+### 내보내기 신호
+
+| 신호 | 내용 | 포맷 |
+|------|------|------|
+| **Traces** | 각 보안 스캔을 파일/K8s 속성이 포함된 스팬(Span)으로 | OTLP gRPC/HTTP |
+| **Metrics** | `triangle.security.scans.total`, `triangle.security.threats.total`, `triangle.security.risk_score` | OTLP gRPC/HTTP |
+| **Logs** | 심각도 매핑이 포함된 구조화된 보안 이벤트 로그 | OTLP gRPC/HTTP |
+
+### 배포 방법
+```bash
+kubectl apply -f k8s-deploy/k8s/otel-exporter.yaml
+```
+
+### 환경 변수 설정
+| 변수 | 기본값 | 설명 |
+|------|--------|------|
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector:4317` | OTLP 수집기 엔드포인트 |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | `grpc` | 프로토콜 (`grpc` 또는 `http/protobuf`) |
+| `OTEL_SERVICE_NAME` | `triangle-ai-security` | 트레이스에 표시되는 서비스 이름 |
+
+---
+
+## 🎮 GPU 보안 모니터링
+
+Triangle AI v0.2는 보안 모니터링을 **GPU 가속 LLM 추론 워크로드**까지 확장하여, 비인가 GPU 메모리 접근과 모델 가중치 탈취 시도를 탐지합니다.
+
+### 위협 탐지 범위
+
+| 위협 | 탐지 방법 | 심각도 |
+|------|----------|--------|
+| **GPU 디바이스 직접 접근** | `/dev/nvidia*`, `/proc/driver/nvidia` 열기에 대한 eBPF 추적 | 🔴 높음 |
+| **모델 가중치 탈취** | `.safetensors`, `.pt`, `.gguf`, `.onnx`, `.bin` 파일 접근 감시 | 🔴 높음 |
+| **GPU 메모리 Attach** | GPU 사용 프로세스에 대한 `ptrace(PTRACE_ATTACH)` 감지 | 🔴 치명적 |
+| **GPU 메모리 Peek** | GPU 프로세스 메모리 읽기 `ptrace(PTRACE_PEEKDATA)` 감지 | 🔴 치명적 |
+| **비인가 GPU 할당** | `nvidia.com/gpu` 요청 시 어노테이션 없으면 Admission Controller가 차단 | 🟡 중간 |
+
+### 아키텍처
+
+```mermaid
+graph TB
+    subgraph "GPU 노드"
+        LLM["LLM 추론 엔진<br/>(vLLM / TGI)"]
+        GPU["NVIDIA GPU<br/>/dev/nvidia0"]
+        EBPF["eBPF Tracer<br/>(DaemonSet)"]
+    end
+    subgraph "Triangle AI"
+        ENGINE["분석 엔진"]
+        HUB["Security Hub"]
+        OTEL["OTEL Exporter"]
+    end
+    subgraph "관측성 플랫폼"
+        GRAFANA["Grafana"]
+    end
+
+    LLM --> GPU
+    EBPF -->|"GPU 디바이스<br/>시스콜 감시"| ENGINE
+    ENGINE --> HUB
+    ENGINE --> OTEL
+    OTEL --> GRAFANA
+```
+
+### 활성화 방법
+eBPF 추적기 DaemonSet에서 `GPU_MONITOR_ENABLED` 환경 변수를 `true`로 설정합니다:
+```yaml
+env:
+  - name: GPU_MONITOR_ENABLED
+    value: "true"
+```
+
+> [!WARNING]
+> GPU 모니터링은 eBPF 추적기가 GPU 노드에서 실행되어야 합니다. DaemonSet이 GPU 노드의 taint를 tolerate하도록 설정되어 있는지 확인하세요.
+
+---
+

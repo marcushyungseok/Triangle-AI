@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: triangle-ebpf-tracer
+  namespace: npe-learner
+  labels:
+    app: triangle-ebpf-tracer
+    component: security
+spec:
+  selector:
+    matchLabels:
+      app: triangle-ebpf-tracer
+  template:
+    metadata:
+      labels:
+        app: triangle-ebpf-tracer
+    spec:
+      hostPID: true       # Required: access host PID namespace for eBPF
+      hostNetwork: true    # Required: see all network connections
+      containers:
+      - name: ebpf-tracer
+        image: triangle-ebpf-tracer:latest
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          privileged: true             # Required for eBPF kernel probes
+          capabilities:
+            add:
+              - SYS_ADMIN
+              - SYS_PTRACE
+              - NET_ADMIN
+              - BPF
+              - PERFMON
+        env:
+        - name: ANALYZER_URL
+          value: "http://pdf-analyzer-service.npe-learner.svc.cluster.local:5000"
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: REPORT_INTERVAL
+          value: "10"
+        - name: GPU_MONITOR_ENABLED
+          value: "true"
+        volumeMounts:
+        - name: sys-kernel-debug
+          mountPath: /sys/kernel/debug
+          readOnly: true
+        - name: sys-fs-bpf
+          mountPath: /sys/fs/bpf
+        - name: proc
+          mountPath: /proc
+          readOnly: true
+        - name: modules
+          mountPath: /lib/modules
+          readOnly: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+      volumes:
+      - name: sys-kernel-debug
+        hostPath:
+          path: /sys/kernel/debug
+      - name: sys-fs-bpf
+        hostPath:
+          path: /sys/fs/bpf
+      - name: proc
+        hostPath:
+          path: /proc
+      - name: modules
+        hostPath:
+          path: /lib/modules
+      tolerations:
+      - operator: Exists

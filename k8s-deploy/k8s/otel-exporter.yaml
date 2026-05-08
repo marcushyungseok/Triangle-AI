@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: triangle-otel-exporter
+  namespace: npe-learner
+  labels:
+    app: triangle-otel-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: triangle-otel-exporter
+  template:
+    metadata:
+      labels:
+        app: triangle-otel-exporter
+    spec:
+      containers:
+      - name: otel-exporter
+        image: triangle-otel-exporter:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: ANALYZER_URL
+          value: "http://pdf-analyzer-service.npe-learner.svc.cluster.local:5000"
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://otel-collector.monitoring.svc.cluster.local:4317"
+        - name: OTEL_EXPORTER_OTLP_PROTOCOL
+          value: "grpc"
+        - name: OTEL_SERVICE_NAME
+          value: "triangle-ai-security"
+        - name: OTEL_TRACES_ENABLED
+          value: "true"
+        - name: OTEL_METRICS_ENABLED
+          value: "true"
+        - name: OTEL_LOGS_ENABLED
+          value: "true"
+        - name: POLL_INTERVAL
+          value: "5"
+        resources:
+          requests:
+            cpu: 25m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi

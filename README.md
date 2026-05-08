@@ -216,6 +216,161 @@ Triangle AI now includes a complete **Cloud Native Security Hub** designed for r
 
 ---
 
+## ⚡ eBPF-Based Kernel Security Tracing
+
+Triangle AI v0.2 introduces a **high-performance eBPF (extended Berkeley Packet Filter)** tracer that attaches directly to the Linux kernel to monitor syscalls in real-time — without modifying application code or adding sidecar proxies.
+
+### How It Works
+
+```mermaid
+graph LR
+    subgraph "Linux Kernel"
+        PROBE["eBPF Probes<br/>(openat, execve, ptrace)"]
+    end
+    subgraph "User Space"
+        TRACER["Triangle AI<br/>eBPF Tracer"]
+        ENGINE["Analysis Engine"]
+    end
+    PROBE -->|Perf Buffer| TRACER
+    TRACER -->|Batched Events| ENGINE
+```
+
+### Traced Syscalls
+| Syscall | Detection Target |
+|---------|-----------------|
+| `openat` | Sensitive file access (secrets, shadow, GPU devices) |
+| `execve` | Suspicious process execution (shells, curl, wget) |
+| `ptrace` | Process injection, GPU memory exfiltration attempts |
+
+### Deployment
+```bash
+kubectl apply -f k8s-deploy/k8s/ebpf-tracer-daemonset.yaml
+```
+
+> [!NOTE]
+> The eBPF tracer requires `privileged: true` and kernel headers. It runs as a DaemonSet to cover every node in the cluster.
+
+---
+
+## 🛡️ Admission Controller (Security Policy Webhook)
+
+Triangle AI includes a **Kubernetes ValidatingWebhookConfiguration** that blocks non-compliant containers **before** they are created. This shifts security enforcement left — from detection to prevention.
+
+### Enforced Policies
+
+| Policy | Description | Default |
+|--------|-------------|---------|
+| **Privileged Mode** | Blocks containers requesting `privileged: true` | ✅ Enabled |
+| **Root User** | Blocks containers running as UID 0 | ✅ Enabled |
+| **Resource Limits** | Requires CPU and memory limits on every container | ✅ Enabled |
+| **Host Path** | Blocks `hostPath` volume mounts | ✅ Enabled |
+| **Host Namespace** | Blocks `hostPID` and `hostNetwork` access | ✅ Enabled |
+| **Image Registry** | Restricts images to approved registries only | ✅ Enabled |
+| **Dangerous Capabilities** | Blocks `SYS_ADMIN`, `NET_RAW`, `SYS_PTRACE`, `ALL` | ✅ Enabled |
+| **GPU Annotation** | Requires `triangle-ai/gpu-approved: true` for GPU access | ✅ Enabled |
+
+### Deployment
+```bash
+# 1. Generate TLS certificates
+openssl req -x509 -newkey rsa:2048 -keyout tls.key -out tls.crt \
+  -days 365 -nodes -subj "/CN=triangle-admission-controller.npe-learner.svc"
+
+# 2. Create K8s TLS secret
+kubectl create secret tls triangle-admission-tls \
+  --cert=tls.crt --key=tls.key -n npe-learner
+
+# 3. Deploy webhook
+kubectl apply -f k8s-deploy/k8s/admission-controller.yaml
+```
+
+> [!IMPORTANT]
+> Denied pod creation attempts are automatically recorded in the Triangle AI audit log, accessible via the `/api/admission-events` endpoint.
+
+---
+
+## 📡 OpenTelemetry Integration (OTLP Export)
+
+All Triangle AI security events can be exported in **OpenTelemetry Protocol (OTLP)** format for seamless integration with observability platforms.
+
+### Supported Backends
+- **Grafana** (via Tempo for traces, Mimir for metrics, Loki for logs)
+- **Jaeger** (distributed tracing)
+- **Datadog**, **New Relic**, **Splunk** (via OTLP endpoint)
+
+### Exported Signals
+
+| Signal | Content | Format |
+|--------|---------|--------|
+| **Traces** | Each security scan as a span with file/K8s attributes | OTLP gRPC/HTTP |
+| **Metrics** | `triangle.security.scans.total`, `triangle.security.threats.total`, `triangle.security.risk_score` | OTLP gRPC/HTTP |
+| **Logs** | Structured security event logs with severity mapping | OTLP gRPC/HTTP |
+
+### Deployment
+```bash
+kubectl apply -f k8s-deploy/k8s/otel-exporter.yaml
+```
+
+### Environment Variables
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector:4317` | OTLP collector endpoint |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | `grpc` | Protocol (`grpc` or `http/protobuf`) |
+| `OTEL_SERVICE_NAME` | `triangle-ai-security` | Service name in traces |
+
+---
+
+## 🎮 GPU Security Monitoring
+
+Triangle AI v0.2 extends security monitoring to **GPU-accelerated LLM inference workloads**, detecting unauthorized GPU memory access and model weight theft attempts.
+
+### Threat Detection Scope
+
+| Threat | Detection Method | Severity |
+|--------|-----------------|----------|
+| **GPU Device Direct Access** | eBPF tracing of `/dev/nvidia*` and `/proc/driver/nvidia` opens | 🔴 High |
+| **Model Weight Exfiltration** | File access monitoring for `.safetensors`, `.pt`, `.gguf`, `.onnx`, `.bin` | 🔴 High |
+| **GPU Memory Attach** | `ptrace(PTRACE_ATTACH)` on GPU-using processes | 🔴 Critical |
+| **GPU Memory Peek** | `ptrace(PTRACE_PEEKDATA)` reading GPU process memory | 🔴 Critical |
+| **Unapproved GPU Allocation** | Admission Controller blocks pods requesting `nvidia.com/gpu` without annotation | 🟡 Medium |
+
+### Architecture
+
+```mermaid
+graph TB
+    subgraph "GPU Node"
+        LLM["LLM Inference<br/>(vLLM / TGI)"]
+        GPU["NVIDIA GPU<br/>/dev/nvidia0"]
+        EBPF["eBPF Tracer<br/>(DaemonSet)"]
+    end
+    subgraph "Triangle AI"
+        ENGINE["Analysis Engine"]
+        HUB["Security Hub"]
+        OTEL["OTEL Exporter"]
+    end
+    subgraph "Observability"
+        GRAFANA["Grafana"]
+    end
+
+    LLM --> GPU
+    EBPF -->|"Monitor syscalls<br/>to GPU devices"| ENGINE
+    ENGINE --> HUB
+    ENGINE --> OTEL
+    OTEL --> GRAFANA
+```
+
+### How to Enable
+Set the `GPU_MONITOR_ENABLED` environment variable to `true` in the eBPF tracer DaemonSet:
+```yaml
+env:
+  - name: GPU_MONITOR_ENABLED
+    value: "true"
+```
+
+> [!WARNING]
+> GPU monitoring requires the eBPF tracer to run on GPU nodes. Ensure the DaemonSet tolerates GPU node taints.
+
+---
+
 ## 🛠️ Tech Stack
 - **Language**: Python 3.11
 - **ML**: TensorFlow (FNN)
@@ -224,6 +379,9 @@ Triangle AI now includes a complete **Cloud Native Security Hub** designed for r
 - **Storage**: NFS (Network File System)
 - **Containerization**: Docker, Kubernetes (Minikube)
 - **Communication**: XMLRPC
+- **Kernel Tracing**: eBPF / BCC
+- **Observability**: OpenTelemetry (OTLP)
+- **Policy Enforcement**: Kubernetes Admission Webhooks
 
 ---
 
